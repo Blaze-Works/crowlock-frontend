@@ -1,0 +1,13 @@
+{
+	"short_name":"Crowlock",
+	"name":"Crowlock - Where Trading Meets Connection",
+	"background_color":"#9234eb",
+	"theme_color":"#9234eb",
+	"display":"standalone",
+	"orientation":"any",
+	"start_url":"https://crowlock.vercel.app/",
+	"scope":"https://crowlock.vercel.app/",
+	"icons":[
+		{"src":"/icons/icon125.png","sizes":"125x125","type":"image/png"}
+	]
+}
