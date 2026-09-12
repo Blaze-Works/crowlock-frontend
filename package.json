@@ -23,6 +23,7 @@
 		"morgan": "^1.10.1",
 		"p-limit": "^3.1.0",
 		"rolldown": "^1.2.7",
+		"serverless-http": "^4.0.0",
 		"terser": "^5.46.2"
 	},
 	"description": "Crowlock",
@@ -39,6 +40,6 @@
 	"scripts": {
 		"build": "vite build",
 		"start": "node src/index",
-		"dev": "node --watch-path=./src ./src/index"
+		"dev": "vite"
 	}
 }

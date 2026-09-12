@@ -8,13 +8,12 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
+require('dotenv').config({ quiet: true });
+
 const log = require('./logger.js');
 const htmlRes = require('./htmlRes.js');
-require('dotenv').config();
 
-async function createApp() {
-	log(`v${process.env.VERSION}`);
-
+function createApp() {
 	const app = express();
 
 	app.use(helmet({
@@ -38,7 +37,7 @@ async function createApp() {
 
 	app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-	app.use(express.static(path.join(process.cwd(), process.env.NODE_ENV === 'production' ? 'dist/' : 'public/')));
+	if (!Number(process.env.USE_VERCEL)) app.use(express.static(path.join(process.cwd(), process.env.NODE_ENV === 'production' ? 'dist/' : 'public/')));
 
 	app.get('/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
 
@@ -52,7 +51,7 @@ async function createApp() {
 		res.status(status).json({ success: false, status, message });
 	});
 
-	if (process.env.USE_VERCEL) return app;
+	if (!!Number(process.env.USE_VERCEL)) return app;
 
 	const httpsOptions = {
 		key: process.env.HTTPS_KEY,
@@ -64,11 +63,12 @@ async function createApp() {
 
 	const httpServer = http.createServer(app);
 	httpServer.listen(HTTP_PORT, () => log(`HTTP server running on port ${HTTP_PORT}`));
-	
-	if (process.env.USE_HTTPS)
+
+	if (!!Number(process.env.USE_HTTPS))
 		{ const httpsServer = https.createServer(httpsOptions, app); httpsServer.listen(HTTPS_PORT, () => log(`HTTPS server running on port ${HTTPS_PORT}`)); }
 
 	return app;
 }
 
 module.exports = createApp();
+

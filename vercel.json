@@ -1,23 +1,28 @@
 {
 	"version": 2,
-	"builds": [
+
+	"env": {
+		"USE_VERCEL": "1"
+	},
+	"headers": [
 		{
-			"src": "package.json",
-			"use": "@vercel/static-build",
-			"config": {
-				"distDir": "dist"
-			}
-		},
-		{
-			"src": "src/index.js",
-			"use": "@vercel/node"
-			
+			"source": "/(.*)",
+			"headers": [
+				{ "key": "X-Frame-Options", "value": "DENY" },
+				{ "key": "X-Content-Type-Options", "value": "nosniff" },
+				{ "key": "Referrer-Policy", "value": "no-referrer-when-downgrade" },
+				{ "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains; preload" },
+				{ "key": "Content-Security-Policy", "value": "default-src 'self' https://crowlock.onrender.com/; img-src * blob: data:; script-src 'self' https://esm.run https://cdn.jsdelivr.net https://accounts.google.com/gsi/client https://accounts.google.com; connect-src 'self' https://accounts.google.com/gsi/ *; frame-src 'self' https://accounts.google.com/gsi/ https://verify.walletconnect.org;" }
+			]
 		}
 	],
+	"builds": [
+		{ "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "./dist" } },
+		{ "src": "src/index.js", "use": "@vercel/node" }
+	],
 	"routes": [
-		{
-			"src": "/(.*)",
-			"dest": "src/idex.js"
-		}
+		{ "handle": "filesystem" },
+		{ "src": "/assets/(.*)", "dest": "/dist/assets/$1", "headers": { "cache-control": "public, max-age=31536000, immutable" } },
+		{ "src": "/(.*)", "dest": "src/index.js" }
 	]
 }

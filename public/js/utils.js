@@ -71,6 +71,7 @@ const Button = (child, color = 'violet', attr = {}) => h('button', { 'data-slot'
 const ImageWithFallback = (opt) => {
 	if (opt.src.split(':')[0] === 'blob') return h('img', { class: 'w-full h-full object-contain', ...opt })
 	const placeholder = h('div', { class: 'size-full aspect-square animate-pulse' }, SVG.imgPlaceholder('size-full'));
+	opt.src = 'https://crowlock.onrender.com' + opt.src;
 	if (!!cachedImages[opt.src]) {
 		opt.src = cachedImages[opt.src];
 		return h('img', { class: 'w-full h-full object-contain', ...opt })
@@ -81,7 +82,7 @@ const ImageWithFallback = (opt) => {
 		opt.src = blob;
 		placeholder.before(h('img', { class: 'w-full h-full object-contain', ...opt })).remove();
 	}).catch(e => {
-		
+
 	});
 
 	return placeholder;
@@ -242,7 +243,7 @@ async function toFlat(value, currency = 'ethereum') {
 }
 
 function fromMeta(prop) {
-	return EQuery(`meta[name='${prop}']`).attr('content') || '';
+	return EQuery(`meta[property='${prop}']`).getAttr('content') || '';
 }
 
 function toBlob(dataUrl) {
