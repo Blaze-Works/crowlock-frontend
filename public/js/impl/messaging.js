@@ -41,11 +41,11 @@ let _keyPair = null;
 
 const _deviceKeyCache = new Map();
 
-let _authHeaders = null;
+let _authCallback = null;
 
-export async function registerKey(uid, authHeaders) {
+export async function registerKey(uid, app) {
 	_currentUserId = uid;
-	_authHeaders = authHeaders;
+	_authCallback = () => app.authHeaders.apply(app);
 
 	const { signingPublicKeyPem } = await fetchWithTimeout(`/api/keys/server/signing-key`);
 	await loadServerSigningKey(signingPublicKeyPem);
@@ -59,6 +59,7 @@ export async function registerKey(uid, authHeaders) {
 		if (keyRecord) {
 			_keyPair = keyRecord;
 			log(`[messaging] Loaded existing device: ${_currentDeviceId}`);
+
 			return { deviceId: _currentDeviceId, isNewDevice: false };
 		}
 		log.warn('[messaging] Device meta found but key pair is missing. Re-registering device…');
@@ -77,7 +78,7 @@ export async function registerKey(uid, authHeaders) {
 	try {
 		await fetchWithTimeout(`/api/keys/register`, {
 			method: 'POST',
-			headers: _authHeaders,
+			headers: await _authCallback(),
 			body: JSON.stringify({ deviceId: newDeviceId, publicKeyPem, deviceName: resolvedName }),
 		});
 	} catch (e) {
@@ -101,14 +102,14 @@ export async function getVerifiedDevices(userId) {
 
 	try {
 		res = await fetchWithTimeout(`/api/keys/devices/${userId}`, {
-			headers: _authHeaders,
+			headers: await _authCallback(),
 		});
 	} catch (err) {
 		if (err.status === 404) throw new Error(`[messaging] User ${userId} has no registered devices. Ask them to open the app to generate their keys.`);
 		throw new Error('[messaging] Failed to fetch device keys: ' + await handleError(err));
 	}
 
-	const { devices } = await res.json();
+	const { devices } = res;
 
 	// Verify ALL signatures before trusting any key
 	const verified = await Promise.all(
@@ -145,7 +146,7 @@ async function decryptIncomingMessage(msg) {
 		return null;
 	}
 
-	return decryptMessage({
+	return await decryptMessage({
 		ciphertext: msg.ciphertext,
 		iv: msg.iv,
 		encryptedKeyForThisDevice: myEncryptedKey,
@@ -179,11 +180,11 @@ export async function sendMessage({ recipientId, text, messageType = 'text' }) {
 	try {
 		const res = await fetchWithTimeout(`/api/messages/send`, {
 			method: 'POST',
-			headers: _authHeaders,
+			headers: await _authCallback(),
 			body: JSON.stringify({ recipientId, ciphertext, iv, encryptedKeys, messageType }),
 		});
 
-		return res.json();
+		return res;
 	} catch (err) {
 		throw new Error(`[messaging] Send failed: ${await handleError(err)}`);
 	}
@@ -263,13 +264,13 @@ export async function loadMessages(conversationId, { limit = 30, beforeSentAt } 
 
 	try {
 		res = await fetchWithTimeout(`/api/messages/${conversationId}?${params}`, {
-			headers: _authHeaders,
+			headers: await _authCallback(),
 		});
 	} catch { throw new Error('[messaging] Failed to load messages.') }
 
-	const { messages } = res;
+	const { messages, participants } = res;
 
-	return Promise.all(
+	const fulfilled = await Promise.all(
 		messages.map(async (msg) => {
 			let plaintext = null;
 			let unavailable = false;
@@ -285,12 +286,13 @@ export async function loadMessages(conversationId, { limit = 30, beforeSentAt } 
 			return { plaintext, unavailable, messageId: msg.messageId, senderId: msg.senderId, sentAt: msg.sentAt, messageType: msg.messageType, readAt: msg.readAt };
 		})
 	);
+	return { messages: fulfilled, participants }
 }
 
 export async function listMyDevices() {
 	try {
 		const { devices } = await fetchWithTimeout(`/api/keys/my-devices`, {
-			headers: _authHeaders,
+			headers: await _authCallback(),
 		});
 
 		return devices;
@@ -299,9 +301,9 @@ export async function listMyDevices() {
 
 export async function revokeDevice(deviceId) {
 	try {
-		await fetchWithTimeout(`/api/keys/devices/${deviceId}`, {
+		const res = await fetchWithTimeout(`/api/keys/devices/${deviceId}`, {
 			method: 'DELETE',
-			headers: _authHeaders,
+			headers: await _authCallback(),
 		});
 
 		invalidateDeviceCache(_currentUserId);
@@ -313,7 +315,7 @@ export async function revokeDevice(deviceId) {
 			_currentUserId = null;
 		}
 
-		return res.json();
+		return res;
 	} catch (err) {
 		throw new Error(`[messaging] Revoke failed: ${await handleError(err)}`);
 	}
@@ -327,17 +329,18 @@ export async function markMessageRead(conversationId, messageId) {
 	try {
 		await fetchWithTimeout(`/api/messages/${conversationId}/${messageId}/read`, {
 			method: 'PATCH',
-			headers: _authHeaders,
+			headers: await _authCallback(),
 		});
 	} catch { throw new Error('[messaging] Failed to mark message as read.') }
 }
 
 export async function loadConversations() {
 	try {
-		const res = await fetchWithTimeout('/api/conversations', { headers: _authHeaders });
-		const { conversations } = await res.json();
+		const { conversations } = await fetchWithTimeout('/api/messages/conversations', {
+			headers: await _authCallback()
+		});
 		return conversations;
-	} catch { throw new Error('[messaging] Failed to load conversations.') }
+	} catch (e) { throw new Error(`[messaging] Failed to load conversations: ${e}`) }
 }
 
 export async function backupPrivateKey(password) {
@@ -360,7 +363,7 @@ export async function restoreFromBackup(backupJson, password) {
 
 	try {
 		response = await fetchWithTimeout(`/api/keys/devices/${_currentUserId}`, {
-			headers: _authHeaders,
+			headers: await _authCallback(),
 		});
 	} catch {
 		throw new Error('[messaging] Failed to fetch device keys during restore.');
@@ -402,7 +405,7 @@ export async function rotateKeyPair() {
 	try {
 		await fetchWithTimeout('/api/keys/register', {
 			method: 'POST',
-			headers: _authHeaders,
+			headers: await _authCallback(),
 			body: JSON.stringify({ publicKeyPem }),
 		});
 	} catch (err) {

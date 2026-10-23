@@ -1,4 +1,4 @@
-import { D, SVG, Notice, lineBreak, log, Input, Button, wait, fetchWithTimeout, handleError } from '../utils.js';
+import { D, SVG, lineBreak, Button } from '../utils.js';
 import Screen from './ui/Screen.js';
 
 export default class Welcome extends Screen {

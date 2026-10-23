@@ -4,8 +4,7 @@
 
 import { D, SVG } from '../../utils.js';
 
-const inputCls = 'absolute flex h-9 min-w-0 border px-3 py-1 text-base transition-[color,box-shadow] outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive pl-10 bg-zinc-900 border-violet-500/20 focus:border-violet-500/50 text-white rounded-xl z-0';
-const btnCls = 'inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*=\'size-\'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 w-full bg-gradient-to-r bg-zinc-900 text-white rounded-xl';
+const inputCls = 'flex-grow h-9 min-w-0 border-none py-1 text-base outline-none md:text-sm bg-zinc-900 border-violet-500/20 focus:border-violet-500/50 text-white rounded-xl';
 
 
 export default class Select {
@@ -18,10 +17,12 @@ export default class Select {
 	constructor(data) {
 		let _this = this;
 		this.data = data;
-		this.input = D('input', null, `absolute ${inputCls}`, { 'data-slot': 'select-input' }, 'width: calc(100% - 16px)');
+		this.input = D('input', null, `flex-1 ${inputCls}`, null, 'width: calc(100% - 16px)');
+		this.search = D('div', [this.input, SVG.search('w-5 h-5 text-gray-500')], 'relative inline-flex items-center justify-between gap-2 whitespace-nowrap text-sm font-medium transition-all h-9 px-4 py-2 w-full bg-zinc-900 text-white rounded-t-xl border border-violet-500/60 border-b-0 hidden', { 'data-slot': 'select-input' });
 		this.select = D('select', this.data.select.map((i, n) => D('option', String(i), null, { value: n, 'data-slot': 'select-option' })), 'hidden');
-		this.panel = D('div', [this.select, this.input], 'relative user-select-none mb-1', { 'data-slot': 'select' }, 'margin: 10px 0;padding: 7px');
-		this.elt = D('div', [this.panel], null, { 'data-slot': 'select-outer' });
+		this.panel = D('div', [this.select, this.search], 'relative user-select-none mb-1', { 'data-slot': 'select' }, 'margin: 10px 0;padding: 7px');
+		this.elt = D('div', this.panel, null, { 'data-slot': 'select-outer' });
+		this.elt[0].select = this;
 		
 		this.editSelect();
 		this.input.on('input', function () {
@@ -50,29 +51,30 @@ export default class Select {
 	 */
 	editSelect() {
 		const _this = this;
-		const elt = this.select[0];
-		const a = D('div', SVG.chevronDown('w-5 h-5'), `relative ${btnCls} border border-violet-500/60`, { 'data-slot': 'select-selected' });
-		const b = D('div', null, 'absolute top-[40px] bg-zinc-700 w-full z-50 data-[visible=hidden]:hidden', { 'data-slot': 'select-item', 'data-visible': 'hidden' });
+		this.a = D('div', SVG.chevronDown('w-5 h-5'), `relative relative inline-flex items-center justify-between gap-2 whitespace-nowrap text-sm font-medium transition-all h-9 px-4 py-2 w-full bg-zinc-900 text-white rounded-xl border border-violet-500/60`, { 'data-slot': 'select-selected' });
+		this.b = D('div', null, 'absolute top-[43px] bg-zinc-700 overflow-hidden rounded-b-xl border border-violet-500/60 border-t-0 z-50 data-[visible=hidden]:hidden', { 'data-slot': 'select-item', 'data-visible': 'hidden' });
 
-		a.append(elt.options[0].innerText);
-		this.input.val(elt.options[0].innerText);
-		for (let i = 0; i < elt.options.length; i++) {
-			const c = D('div', elt.options[i].innerHTML, 'w-full bg-opacity px-4 py-3 cursor-pointer user-select-none hover:opacity-75 data-[slot=same-as-selected]:bg-zinc-800');
-			b.append(c);
-		}
-		b[0].firstChild.setAttribute('data-slot', 'same-as-selected');
-		this.panel.append([a, b]);
-		a.click(function (event) {
+		this.a.prepend(this.data.select[0]);
+		this.input.val(this.data.select[0]);
+		this.b.append(this.data.select.map(s => D('div', s, 'inline-flex items-center whitespace-nowrap text-sm font-medium h-9 px-4 py-2 w-full bg-zinc-800 text-white hover:bg-zinc-900/70 hover:cursor-pointer data-[slot=same-as-selected]:bg-zinc-900')));
+		this.b[0].firstChild.setAttribute('data-slot', 'same-as-selected');
+		this.panel.append(this.a, this.b);
+
+		this.a.click(function (event) {
 			event.stopPropagation();
 			_this.closeAllSelect();
-			_this.input.removeClass('z-0').addClass('z-10').val('');
+			_this.search.removeClass('hidden');
+			_this.input.val('');
 			_this.input[0].focus();
 			this.nextSibling.toggleAttribute('data-visible');
 			this.toggleAttribute('data-select-arror');
+			this.nextSibling.scrollTop = 0;
+			_this.b.css(`width: ${EQuery(this).width()}px`);
+			_this.a.addClass('hidden');
 			const d = _this.panel.find('[data-slot=select-item]>div');
 			d.click(function (i) {
-				_this.input.val(this.innerHTML);
-				this.parentElement.parentElement.children[2].innerHTML = this.innerHTML;
+				_this.input.val(this.innerText);
+				EQuery(this.parentElement.parentElement.children[2]).removeChildren().append(this.innerHTML, SVG.chevronDown('w-5 h-5'));
 				_this.panel.find('[data-slot=select-item]>div').each((i, elt) => {
 					EQuery(elt).removeAttr('data-slot');
 				});
@@ -98,42 +100,47 @@ export default class Select {
 
 		EQuery(elt).click(function () {
 			let index = selects.indexOf(this.selectedOptions[0].innerText);
-			_this.panel.find('[data-slot=select-selected]').text(elt.selectedOptions[0].innerText);
-			for (let i = 0; i < EQuery('[data-slot=select-item]>div').length; i++) {
-				EQuery(EQuery('[data-slot=select-item]>div')[i]).removeAttr('data-slot');
-				EQuery(EQuery('[data-slot=select-item]>div')[index]).attr({ 'data-slot': 'same-as-selected' });
+			_this.panel.find('[data-slot=select-selected]').removeChildren().append(elt.selectedOptions[0].innerText, SVG.chevronDown('w-5 h-5'));
+			for (let i = 0; i < _this.b.find('div').length; i++) {
+				EQuery(_this.b.find('div')[i]).removeAttr('data-slot');
+				EQuery(_this.b.find('div')[index]).attr({ 'data-slot': 'same-as-selected' });
 			}
 		});
 
-		this.panel.find('[data-slot=select-item]').click(function () {
-			const selected = _this.panel.find('[data-slot=same-as-selected]')[0];
+		this.b.click(() => {
+			const selected = this.panel.find('[data-slot=same-as-selected]')[0];
 			elt.value = selects.indexOf(selected.innerText);
 		});
 
 		if (window.innerHeight > 520) {
 			let height = this.innerHeight / 4;
-			this.panel.find('[data-slot=select-item]').css(`max-height: ${height}px`);
+			this.b.css(`max-height: ${height}px`);
 		} else {
-			this.panel.find('[data-slot=select-item]').css('max-height: 300px');
+			this.b.css('max-height: 300px');
 		}
 		this.panel.find('input').css(`width: ${this.panel.find('[data-slot=select-selected]').width() - 20}px`);
 
 		EQuery(window).on(['resize', 'click'], function () {
 			if (window.innerHeight > 520) {
 				const height = this.innerHeight / 4;
-				_this.panel.find('[data-slot=select-item]').css(`max-height: ${height}px`);
+				_this.b.css(`max-height: ${height}px`);
 			} else {
-				_this.panel.find('[data-slot=select-item]').css('max-height: 300px');
+				_this.b.css('max-height: 300px');
 			}
-			this.panel.find('input').css(`width: ${this.panel.find('[data-slot=select-selected]').width() - 20}px`);
+			_this.panel.find('input').css(`width: ${_this.panel.find('[data-slot=select-selected]').width() - 20}px`);
 		});
 
 		if (window.innerHeight > 520) {
 			const height = this.innerHeight / 4;
-			this.panel.find('[data-slot=select-item]').css(`max-height: ${height}px`);
+			this.b.css(`max-height: ${height}px`);
 		} else {
-			this.panel.find('[data-slot=select-item]').css('max-height: 300px');
+			this.b.css('max-height: 300px');
 		}
+	}
+
+	close() {
+		this.a.removeClass('hidden');
+		this.b.addClass('hidden');
 	}
 
 	/**
@@ -159,7 +166,8 @@ export default class Select {
 			}
 		});
 
-		EQuery('[data-slot=select-input]').removeClass('z-10').addClass('z-0');
+		y.removeClass('hidden');
+		EQuery('[data-slot=select-input]').addClass('hidden');
 		EQuery('[data-slot=select-item]>div').show();
 	}
 }

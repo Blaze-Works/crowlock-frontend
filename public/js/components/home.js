@@ -1,5 +1,4 @@
-import { D, SVG, Button, ImageWithFallback, Notice, wait, fetchWithTimeout, handleError } from '../utils.js';
-import Modal from './ui/Modal.js';
+import { D, SVG, Button, Notice, wait, fetchWithTimeout, handleError } from '../utils.js';
 import Screen from './ui/Screen.js';
 
 export default class HomeScreen extends Screen {
@@ -149,7 +148,11 @@ export default class HomeScreen extends Screen {
 			this.transactionsSkeleton.remove();
 		} catch (err) {
 			Notice(await handleError(err), 'error');
-			if (err.status == 500) { this.container.removeChildren().append(this.failed);return }
+			if (err.status == 500) {
+				this.container.removeChildren().append(this.failed);
+				this.app.display.container.find('[data-gradient-overlay]').attr({ 'data-gradient-overlay': 'linear' });
+				return;
+			}
 			await wait(2000);
 			this.reloadCount++;
 			this.reload();

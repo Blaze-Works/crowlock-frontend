@@ -1,4 +1,4 @@
-import { D, Storage, SVG, fetchWithTimeout, ImageWithFallback, log, wait, fromMeta, dataURLtoFile, isImage, toBlob, handleError, renderError, extractQuery, Notice, Toast, Button } from './utils.js';
+import { D, Storage, SVG, fetchWithTimeout, ImageWithFallback, log, wait, fromMeta, dataURLtoFile, mimeType, toBlob, handleError, renderError, extractQuery, Notice, Toast, Button } from './utils.js';
 import { registerKey } from './impl/messaging.js';
 
 (function (window) {
@@ -70,22 +70,19 @@ import { registerKey } from './impl/messaging.js';
 		}
 	};
 
-	/**
-	 * Adds event listeners for drag-drop, file upload, navigation, and routing.
-	 * @param {App} app - The application instance
-	 * @returns {void}
-	 */
 	function addEventListeners(app) {
 		const display = app.display;
 
-		display.addBtn.click(() => app.createPostModal.open());
+		display.addBtn.click(() => app.create.open());
 		display.filePicker.change(function () { app.loader.loadFiles(this.files) });
 
 		EQuery(document).click(function (event) {
-			if (event.target && (event.target.hasAttribute('data-navigation') || event.target.hasAttribute('data-no-hyperlink'))) {
-				event.preventDefault();
-				if (event.target.hasAttribute('data-no-hyperlink')) return;
-				app.navigateTo(event.target.getAttribute('data-navigation'));
+			let target = event.target.closest('a');
+			if (!target) target = event.target.closest('button');
+			if (target && (target.hasAttribute('data-navigation') || target.hasAttribute('data-no-hyperlink'))) {
+				if (target.hasAttribute('data-no-hyperlink')) event.preventDefault();
+				else if (target.tagName === 'a') return;
+				target.getAttribute('data-navigation') && app.navigateTo(target.getAttribute('data-navigation'));
 			}
 		});
 
@@ -133,7 +130,7 @@ import { registerKey } from './impl/messaging.js';
 
 			const targetScreen = app.getScreenByPath(path);
 			app.currentSegment = path.split('/')[1];
-			app.setScreen(targetScreen);
+			app.setScreen(targetScreen, path.split('/')[2]);
 
 			if (typeof state.idx === 'number') {
 				app._historyIndex = state.idx;
@@ -141,13 +138,7 @@ import { registerKey } from './impl/messaging.js';
 		});
 	}
 
-	/**
-	 * Manages the display UI and layout of the application.
-	 */
 	class Display {
-		/**
-		 * Creates the Display instance and builds all UI elements.
-		 */
 		constructor() {
 			const d = this;
 			d.error404 = D('div', [
@@ -160,13 +151,13 @@ import { registerKey } from './impl/messaging.js';
 						Button('Return to Home', null, { class: 'h-[44px] px-7 rounded-[8px] bg-[#6f4cff] text-white text-[12px] font-semibold border border-[#8b73ff] shadow-[0_8px_25px_rgba(111,76,255,0.45)]', 'data-navigation': './home' })
 					], 'flex items-center gap-3 mt-10')
 				], 'flex flex-col items-center relative text-center overflow-hidden')
-			], 'fixed top-[40%] left-0 right-0 z-50 flex justify-center translate-y-[-50%] gap-4 duration-200 text-gray-400 min-width-[60vw]')
-			d.mainContent = D('div', null, 'relative mx-auto flex flex-col min-h-full px-4 pt-6 pb-4', { 'data-slot': 'main' });
+			], 'fixed top-[40%] left-0 right-0 z-50 flex justify-center translate-y-[-50%] gap-4 duration-200 text-gray-400 min-width-[60vw]');
+			d.mainContent = D('div', null, 'relative mx-auto flex flex-col min-h-screen px-4 pt-6 pb-4', { 'data-slot': 'main' });
 			d.addBtn = D('button', [D('div', null, 'absolute inset-0 bg-gradient-to-br from-violet-600 to-purple-600 rounded-full animate-ping opacity-20'), SVG.add('w-6 h-6 text-white relative z-10')], 'fixed bottom-28 right-10 z-20 w-14 h-14 bg-gradient-to-br from-violet-600 to-purple-600 rounded-full shadow-2xl shadow-violet-500/50 flex items-center justify-center group', { tabindex: 0 }, 'transform: none');
 			d.loginBtn = D('button', 'Login', 'whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*=\'size-\'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 hover:from-violet-700 hover:to-purple-700 text-white rounded-xl', { 'data-slot': 'button', 'data-navigation': '/login' });
 			d.registerBtn = D('button', 'Register', 'whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*=\'size-\'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white rounded-xl', { 'data-slot': 'button', 'data-navigation': '/register' });
-			d.activityBtn = D('button', [SVG.bell('size-4.5'), D('span', null, 'absolute right-2 top-2 h-2 w-2 rounded-full bg-[#F59E0B]')], 'relative grid h-10 w-10 place-items-center rounded-full bg-transparent hover:text-white text-gray-400 [&_span]:data-[has-unread=false]:hidden', { 'data-has-unread': 'false' });
-			d.profileBtn = D('button', SVG.profile('absolute top-0 left-0 size-8 transition-colors text-gray-400'), 'relative grid h-11 w-11 place-items-center rounded-full bg-transparent')
+			d.activityBtn = D('button', [SVG.bell('h-4.5 w-4.5'), D('span', null, 'absolute right-2 top-2 h-2 w-2 rounded-full bg-[#F59E0B]')], 'relative grid h-10 w-10 place-items-center rounded-full bg-transparent hover:text-white text-gray-400 [&_span]:data-[has-unread=false]:hidden', { 'data-has-unread': 'false' });
+			d.profileBtn = D('button', SVG.profile('absolute h-8 w-8 transition-colors text-gray-400'), 'relative grid h-10 w-10 place-items-center rounded-full bg-transparent')
 			d.nodePos = [
 				D('div', null, 'fixed inset-0 bg-gradient-to-br from-violet-950/30 via-black to-black pointer-events-none'),
 				D('div', null, 'fixed top-0 right-0 w-96 h-96 bg-violet-600/10 rounded-full blur-3xl pointer-events-none'),
@@ -174,9 +165,9 @@ import { registerKey } from './impl/messaging.js';
 				D('div', null, 'fixed top-6 right-6 flex items-center gap-4 z-20')
 			];
 			d.overlay = D('div', null, 'fixed top-0 left-0 min-h-screen w-full bg-black/40 z-20 overflow-hidden', { 'data-slot': 'overlay' });
-			d.filePicker = D('input').attr({ type: 'file', hidden: '' });
+			d.filePicker = D('input').attr({ type: 'file', multiple: '', hidden: '' });
 			d.container = D('div', [
-				D('div', [...d.nodePos, D('div', d.mainContent, 'relative data-[has-form]:h-screen min-h-screen h-full transition-all font-["DM_Sans",sans-serif] before:content-[\'\'] data-[gradient-overlay=off]:before:opacity-0 data-[gradient-overlay=linear]:before:opacity-1 data-[gradient-overlay=radial]:before:opacity-1 before:transition-[opacity] before:duration-500 before:absolute before:inset-0 data-[gradient-overlay=linear]:before:bg-[linear-gradient(180deg,_rgba(26,26,46,0)_0%,_rgba(26,26,46,0.8)_20%,_rgba(26,26,46,1)_100%)] data-[gradient-overlay=radial]:before:blur-3xl data-[gradient-overlay=radial]:before:bg-[radial-gradient(circle_at_50%_0%,_rgba(140,120,242,.8)_0%,_rgba(50,46,107,1)_23%,_rgba(29,27,63,.8),_51%,_rgba(26,26,46,0)_69%,_rgba(18,17,40,1)_97%)]', { 'data-gradient-overlay': 'off' })], 'min-h-screen bg-black text-white relative')
+				D('div', [...d.nodePos, D('div', d.mainContent, 'relative data-[has-form]:h-screen min-h-screen transition-all font-["DM_Sans",sans-serif] before:content-[\'\'] data-[gradient-overlay=off]:before:opacity-0 data-[gradient-overlay=linear]:before:opacity-1 data-[gradient-overlay=radial]:before:opacity-1 before:transition-[opacity] before:duration-500 before:absolute before:inset-0 data-[gradient-overlay=linear]:before:bg-[linear-gradient(180deg,_rgba(26,26,46,0)_0%,_rgba(26,26,46,0.8)_20%,_rgba(26,26,46,1)_100%)] data-[gradient-overlay=radial]:before:blur-3xl data-[gradient-overlay=radial]:before:bg-[radial-gradient(circle_at_50%_0%,_rgba(140,120,242,.8)_0%,_rgba(50,46,107,1)_23%,_rgba(29,27,63,.8),_51%,_rgba(26,26,46,0)_69%,_rgba(18,17,40,1)_97%)]', { 'data-gradient-overlay': 'off' })], 'min-h-screen bg-black text-white relative')
 			], 'node-0_7_container');
 			d.wrapper = D('div', d.filePicker, 'tailwind min-h-screen min-w-screen bg-black text-white select-none');
 			d.toastContainer = D('div', null, 'fixed top-0 left-0 right-0 max-h-32 overflow-auto z-50');
@@ -215,16 +206,7 @@ import { registerKey } from './impl/messaging.js';
 		}
 	}
 
-	/**
-	 * Manages file loading and progress tracking.
-	 */
 	class LoadingManager {
-		/**
-		 * Creates a LoadingManager instance.
-		 * @param {Function} [onLoad] - Callback when all items finish loading
-		 * @param {Function} [onProgress] - Callback for progress updates (url, itemsLoaded, itemsTotal)
-		 * @param {Function} [onError] - Callback for load errors (url)
-		 */
 		constructor(onLoad, onProgress, onError) {
 			this.isLoading = false;
 			this.itemsLoaded = 0;
@@ -238,11 +220,6 @@ import { registerKey } from './impl/messaging.js';
 			this.onError = onError;
 		}
 
-		/**
-		 * Marks the start of loading an item.
-		 * @param {string} url - The URL/identifier of the item being loaded
-		 * @returns {void}
-		 */
 		itemStart(url) {
 			this.itemsTotal++;
 			if (this.isLoading === false) {
@@ -253,11 +230,6 @@ import { registerKey } from './impl/messaging.js';
 			this.isLoading = true;
 		}
 
-		/**
-		 * Marks the end of loading an item.
-		 * @param {string} url - The URL/identifier of the item that finished loading
-		 * @returns {void}
-		 */
 		itemEnd(url) {
 			this.itemsLoaded++;
 			if (this.onProgress !== undefined) {
@@ -271,22 +243,12 @@ import { registerKey } from './impl/messaging.js';
 			}
 		}
 
-		/**
-		 * Marks an item as having an error.
-		 * @param {string} url - The URL/identifier of the item with an error
-		 * @returns {void}
-		 */
 		itemError(url) {
 			if (this.onError !== undefined) {
 				this.onError(url);
 			}
 		}
 
-		/**
-		 * Resolves a URL using the URL modifier if set.
-		 * @param {string} url - The URL to resolve
-		 * @returns {string} The resolved URL
-		 */
 		resolveURL(url) {
 			if (this.urlModifier) {
 				return this.urlModifier(url);
@@ -294,32 +256,16 @@ import { registerKey } from './impl/messaging.js';
 			return url;
 		}
 
-		/**
-		 * Sets a URL modifier function for transforming URLs.
-		 * @param {Function} transform - Function that transforms a URL
-		 * @returns {LoadingManager} This instance (for chaining)
-		 */
 		setURLModifier(transform) {
 			this.urlModifier = transform;
 			return this;
 		}
 
-		/**
-		 * Adds a handler for a specific regex pattern.
-		 * @param {RegExp} regex - Pattern to match file names
-		 * @param {Function} loader - Handler function for matching files
-		 * @returns {LoadingManager} This instance (for chaining)
-		 */
 		addHandler(regex, loader) {
 			this.handlers.push(regex, loader);
 			return this;
 		}
 
-		/**
-		 * Removes a handler by its regex pattern.
-		 * @param {RegExp} regex - The pattern to remove
-		 * @returns {LoadingManager} This instance (for chaining)
-		 */
 		removeHandler(regex) {
 			const index = this.handlers.indexOf(regex);
 			if (index !== -1) {
@@ -328,11 +274,6 @@ import { registerKey } from './impl/messaging.js';
 			return this;
 		}
 
-		/**
-		 * Gets the appropriate handler for a file.
-		 * @param {string} file - The file name to match
-		 * @returns {Function|null} The handler function or null if no match
-		 */
 		getHandler(file) {
 			for (let i = 0, l = this.handlers.length; i < l; i += 2) {
 				const regex = this.handlers[i];
@@ -347,41 +288,20 @@ import { registerKey } from './impl/messaging.js';
 		}
 	}
 
-	/**
-	 * Handles file loading and reading with FileReader API.
-	 */
 	class FileLoader {
-		/**
-		 * Creates a FileLoader instance.
-		 * @param {App} app - The application instance
-		 */
 		constructor(app) {
 			this.app = app;
 			this.handler = app.fromFile;
 		}
 
-		/**
-		 * Resets the handler to the default application file handler.
-		 * @returns {void}
-		 */
 		useDefaultHandler() {
 			this.handler = this.app.fromFile;
 		}
 
-		/**
-		 * Sets a custom handler for file reading.
-		 * @param {Function} handler - Function to call with (result, filename, extension)
-		 * @returns {void}
-		 */
 		setHandler(handler) {
 			this.handler = handler;
 		}
 
-		/**
-		 * Loads a single file and reads it as a data URL.
-		 * @param {File} file - The file to load
-		 * @returns {void}
-		 */
 		loadFile(file) {
 			const _this = this;
 			let filename = file.name;
@@ -398,12 +318,6 @@ import { registerKey } from './impl/messaging.js';
 			reader.readAsDataURL(file);
 		}
 
-		/**
-		 * Loads multiple files.
-		 * @param {FileList|Array<File>} files - The files to load
-		 * @param {Object} [filesMap] - Optional map of file paths to File objects
-		 * @returns {void}
-		 */
 		loadFiles(files, filesMap) {
 			if (files.length > 0) {
 				filesMap = filesMap || this.createFileMap(files);
@@ -423,11 +337,6 @@ import { registerKey } from './impl/messaging.js';
 			}
 		}
 
-		/**
-		 * Creates a map of file names to File objects.
-		 * @param {FileList|Array<File>} files - The files to map
-		 * @returns {Object.<string, File>} Map of file names to File objects
-		 */
 		createFileMap(files) {
 			let map = {};
 			for (let i = 0; i < files.length; i++) {
@@ -437,23 +346,13 @@ import { registerKey } from './impl/messaging.js';
 			return map;
 		}
 
-		/**
-		 * Loads files from a drag-drop DataTransferItemList.
-		 * @param {DataTransferItemList} items - The items from a drag-drop event
-		 * @returns {void}
-		 */
 		loadItemList(items) {
 			let _this = this;
 			this.getFilesFromItemList(items, function (files, filesMap) {
 				_this.loadFiles(files, filesMap);
 			});
 		}
-		/**
-		 * Recursively extracts files from a DataTransferItemList.
-		 * @param {DataTransferItemList} items - The items from drag-drop
-		 * @param {Function} onDone - Callback with (files, filesMap) when complete
-		 * @returns {void}
-		 */
+		
 		getFilesFromItemList(items, onDone) {
 			let itemsCount = 0;
 			let itemsTotal = 0;
@@ -495,14 +394,7 @@ import { registerKey } from './impl/messaging.js';
 		}
 	}
 
-	/**
-	 * Main application controller.
-	 */
 	class App {
-		/**
-		 * Creates the App instance and initializes all components.
-		 * @param {EQueryCollection} mount - The container element to mount the app into
-		 */
 		constructor(mount) {
 			this.VERSION = '1.0.0';
 			this.VERSION_NUMBER = 0;
@@ -524,24 +416,25 @@ import { registerKey } from './impl/messaging.js';
 			mount.append(this.display.wrapper, this.display.toastContainer);
 		}
 
-		async init() {
+		init() {
 			this.inNav = {
-				'home': this.home,
-				'transaction': this.transaction,
-				'chat': this.chat,
-				'profile': this.profile
+				home: this.home,
+				transaction: this.transaction,
+				market: this.market,
+				activity: this.activity,
+				profile: this.profile
 			};
 
 			this.screens = {
 				...this.inNav,
 				welcome: this.welcome,
-				'login': this.login,
-				'register': this.register,
-				'recover': this.recover
+				chat: this.chat,
+				product: this.product,
+				login: this.login,
+				register: this.register,
+				recover: this.recover
 			};
 			addEventListeners(this);
-
-			Object.assign(app.data, await fetchWithTimeout('/api/additionals'));
 			// this.web3Impl.init();
 
 		}
@@ -556,11 +449,12 @@ import { registerKey } from './impl/messaging.js';
 			if (this.currentScreen) this.currentScreen.close();
 			this.prevScreen = this.currentScreen;
 			this.currentScreen = screen;
-			this.currentScreen.init(node);
+			// this.currentScreen.init(node);
 			!this.currentScreen.isForm && this.display.mainContent.addClass(`max-w-${this.currentScreen.size}xl`);
-			this.currentScreen === this.prevScreen && !this.currentScreen.isForm && screen.reload(true);
+			this.currentScreen === this.prevScreen && node == this.prevNode && !this.currentScreen.isForm && screen.reload(true);
+			this.prevNode = node;
 			this.navigation.setActive(this.currentSegment);
-			this.display.mainContent.addClass('min-h-full flex-col px-4 pt-6 pb-4').removeClass('h-full');
+			this.display.mainContent.addClass('flex-col px-4 pt-6 pb-4').removeClass('h-screen');
 			this.display.container.find('[data-gradient-overlay]').removeClass('overflow-hidden').attr({ 'data-gradient-overlay': 'off' }).removeAttr('data-has-form');
 			if (this.currentScreen.isForm) {
 				this.display.mainContent.addClass('h-full').removeClass('flex-col', 'px-4', 'pt-6', 'pb-4', 'min-h-full');
@@ -575,6 +469,7 @@ import { registerKey } from './impl/messaging.js';
 				this.display.addBtn.remove();
 				this.display.nodePos[3].addClass('px-4 py-2').append(this.display.loginBtn, this.display.registerBtn);
 			}
+			this.currentScreen.init(node);
 			document.title = this.currentScreen.title || 'Crowlock';
 			window.scrollTo(0, 0);
 		}
@@ -604,9 +499,18 @@ import { registerKey } from './impl/messaging.js';
 			history.pushState(state, '', path);
 		}
 
+		overlay() {
+			if (arguments.length !== 0) {
+				this.display.wrapper[(arguments[0] ? 'append' : 'rmChild')](this.display.overlay);
+			} else {
+				const exists = this.display.wrapper.find('[data-slot=overlay]').length !== 0;
+				this.display.wrapper[(exists ? 'rmChild' : 'append')](this.display.overlay);
+			}
+		}
+
 		fromFile(result, filename, ext) {
 			this.createPostModal[this.app.currentSegment === 'market' ? 'productImage' : 'postImage'] = dataURLtoFile(result, `${filename}.${ext}`);
-			if (!isImage(result)) {
+			if (image !== mimeType(result).split('/')[0]) {
 				new Modal(this.app, {
 					header: 'Unsupported File type',
 					content: { text: 'Upload an image file' },
@@ -698,7 +602,7 @@ import { registerKey } from './impl/messaging.js';
 					this.navigateTo('/register/username');
 					return;
 				}
-				if (!this.data.userdata.emailVerified) {
+				if (!this.data.userdata.verification.email) {
 					if (location.pathname === '/register/confirm-email') return;
 					this.navigateTo('/register/confirm-email');
 					return;
@@ -713,15 +617,6 @@ import { registerKey } from './impl/messaging.js';
 			this.display.container.prepend(this.display.addBtn);
 		}
 
-		overlay() {
-			if (arguments.length !== 0) {
-				this.display.wrapper[(arguments[0] ? 'append' : 'rmChild')](this.display.overlay);
-			} else {
-				const exists = this.display.wrapper.find('[data-slot=overlay]').length !== 0;
-				this.display.wrapper[(exists ? 'rmChild' : 'append')](this.display.overlay);
-			}
-		}
-
 		async reload(toRoot) {
 			await this.storage.set(this.data || {});
 			if (toRoot) location = '/';
@@ -729,7 +624,7 @@ import { registerKey } from './impl/messaging.js';
 		}
 
 		async logout(toRoot = false) {
-			this.data = {};
+			delete this.data.userdata;
 			await this.storage.clear();
 			await this.storage.clear('authToken');
 			if (toRoot) this.reload(true);
@@ -739,7 +634,7 @@ import { registerKey } from './impl/messaging.js';
 		async update() {
 			try {
 				const response = await fetchWithTimeout('/api/user/fetch', {
-					method: 'post',
+					method: 'GET',
 					headers: await this.authHeaders()
 				});
 
@@ -749,7 +644,8 @@ import { registerKey } from './impl/messaging.js';
 				this.display.profileBtn.append(D('div', ImageWithFallback({ src: response.user.avatar, alt: response.user.username }), 'h-full w-full rounded-full overflow-hidden z-10'));
 				this.display.activityBtn.attr({ 'data-has-unread': String(response.user.hasUnread) })
 
-				await registerKey(this.data.userdata.uid, await this.authHeaders());
+				await registerKey(this.data.userdata.uid, this);
+				this.ready = true;
 			} catch (err) {
 				if (err.status === 401) {
 					Notice('Session expired, please login again', 'warn');
@@ -804,11 +700,14 @@ import { registerKey } from './impl/messaging.js';
 
 		const componentList = {
 			active: './components/active.js',
+			activity: './components/activity.js',
 			chat: './components/chat.js',
 			create: './components/create.js',
 			dispute: './components/dispute.js',
 			home: './components/home.js',
+			market: './components/market.js',
 			payment: './components/payment.js',
+			product: './components/product.js',
 			profile: './components/profile.js',
 			review: './components/review.js',
 			transaction: './components/transaction.js',
@@ -834,7 +733,7 @@ import { registerKey } from './impl/messaging.js';
 
 						return modulesGlob[path]();
 					});
-				} else importPromises = keys.map(key => { cachePath = componentList[key];return import(cachePath); });
+				} else importPromises = keys.map(key => import(componentList[key]));
 
 				const modules = await Promise.all(importPromises);
 
@@ -873,10 +772,11 @@ import { registerKey } from './impl/messaging.js';
 		const state = await app.storage.get();
 		app.fromJSON(state);
 		app.data.alpha && Toast([SVG.alert('w-5 h-5'), 'This app is still in development, be careful with sensistive information'], 'warn');
+		Object.assign(app.data, await fetchWithTimeout('/api/additionals'));
 		app.storage.set(app.data);
 
 		window.google?.accounts.id.initialize({
-			client_id: app.data.OAUTH_CLIENTID || '525979073587-ikftj9rfmo1i7853kj3a3cvm7qrc2mnd.apps.googleusercontent.com',
+			client_id: app.data.OAUTH_CLIENTID,
 			callback: app.fromOAuth,
 			ux_mode: 'popup',
 			use_fedcm_for_prompt: false
@@ -886,7 +786,7 @@ import { registerKey } from './impl/messaging.js';
 		app._historyIndex = app._historyIndex || 0;
 		history.replaceState({ path: window.location.pathname, search: window.location.search, idx: app._historyIndex }, '', window.location.pathname + window.location.search);
 		if (window.location.pathname !== '/') {
-			app.navigateTo(window.location.pathname, false, window.location.search);
+			app.navigateTo(window.location.pathname, true, window.location.search);
 		} else {
 			app.navigateTo(app.data.userdata ? '/home' : '/welcome', true);
 		}

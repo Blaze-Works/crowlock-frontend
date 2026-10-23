@@ -70,7 +70,7 @@ export default class RegisterForm {
 		this.nextBtn = D('button', 'Next', btnCls, { 'data-slot': 'button' });
 		this.submitBtn = D('button', 'Register', btnCls, { 'data-slot': 'button' });
 
-		this.links = D('div', [D('button', ['Have an account? ', D('a', 'Login', 'underline underline-offset-2', { href: '/login', 'data-navigation': '/login', 'data-no-hyperlink': '' }).click(async () => { this.left.addClass('animate-toRight'); this.container.addClass('lg:animate-toDown animate-toLeft'); await wait(200); this.app.navigateTo('/login'); })], 'text-sm text-gray-400 bg-transparent border-0 p-0', { type: 'button' })], 'flex justify-between items-center mt-3');
+		this.links = D('div', [D('button', ['Have an account? ', D('a', 'Login', 'underline underline-offset-2', { href: '/login', 'data-no-hyperlink': '' }).click(async () => { this.left.addClass('animate-toRight'); this.container.addClass('lg:animate-toDown animate-toLeft'); await wait(200); this.app.navigateTo('/login'); })], 'text-sm text-gray-400 bg-transparent border-0 p-0', { type: 'button' })], 'flex justify-between items-center mt-3');
 		
 		this.footer = D('div', D('p', ['By creating an account, you agree to our ', D('a', 'Terms of Service', 'text-[#8b5cf6] text-none', { href: '/terms', 'data-navigation': '/terms' }), ' and ', D('a', 'Privacy Policy', 'text-[#8b5cf6] text-none', { href: '/privacy-policy', 'data-navigation': '/privacy-policy' })], 'text-sm text-center text-gray-600'), 'flex flex-col gap-3')
 

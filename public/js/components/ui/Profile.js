@@ -1,4 +1,4 @@
-import { log, D, SVG, Button, Notice, truncate, ImageWithFallback, fetchWithTimeout, handleError } from '../../utils.js';
+import { D, SVG, Button, Notice, truncate, ImageWithFallback, fetchWithTimeout, handleError } from '../../utils.js';
 import Drawer from './Drawer.js';
 
 export default class Profile {
@@ -10,18 +10,22 @@ export default class Profile {
 				D('p', `@${user.username}`, 'text-xs text-gray-500')
 			], 'flex-1'),
 			(user.verified && D('span', 'Verified Trader', 'inline-flex items-center justify-center rounded-md border px-2 py-0.5 font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden [a&]:hover:bg-accent [a&]:hover:text-accent-foreground border-violet-500/50 text-violet-400 text-xs'))
-		], 'p-4 flex items-center gap-3').click(function () { Profile.openPopup(app, user, EQuery(this).getBoundingClientRect()) });
+		], 'p-4 flex items-center gap-3').click(e => { e.preventDefault();Profile.openPopup(app, user) });
 	}
 
 	static profileImage(app, user) {
-		return D('div', ImageWithFallback({ src: user.avatar, alt: user.username }), 'w-10 h-10 border-2 border-violet-500/30 rounded-full overflow-hidden').click(function () { Profile.openPopup(app, user, EQuery(this).getBoundingClientRect()) });
+		return D('div', ImageWithFallback({ src: user.avatar, alt: user.username }), 'w-10 h-10 border-2 border-violet-500/30 rounded-full overflow-hidden').click(e => { e.preventDefault();Profile.openPopup(app, user) });
+	}
+
+	static minimal(app, user) {
+		return D('div', [D('div', ImageWithFallback({ src: user.avatar, alt: user.username }), 'w-10 h-10 border-2 border-violet-500/30 rounded-full overflow-hidden'), D('span', `@${user.username}`, 'text-xs text-gray-500'), (user.verified && SVG.badgeCheck('w-4 h-4 text-violet-400'))], 'flex items-center gap-2').click(e => { e.preventDefault();Profile.openPopup(app, user) });
 	}
 
 	static small(app, user) {
-		return D('div', [D('span', `@${user.username}`, 'text-xs text-gray-500'), (user.verified && SVG.badgeCheck('w-4 h-4 text-violet-400'))], 'flex items-center gap-2').click(function () { Profile.openPopup(app, user, EQuery(this).getBoundingClientRect()) });
+		return D('div', [D('span', `@${user.username}`, 'text-xs text-gray-500'), (user.verified && SVG.badgeCheck('w-4 h-4 text-violet-400'))], 'flex items-center gap-2').click(e => { e.preventDefault();Profile.openPopup(app, user) });
 	}
 
-	static async openPopup(app, user, pos) {
+	static async openPopup(app, user) {
 		const content = [
 			D('div', D('div', SVG.ellipsis('w-4 h-4 [&>circle]:fill-gray-100'), 'absolute right-4 top-4 rounded-full p-1 bg-black/20').click(() => {}), `h-[155px] ${user.bannerColor || 'bg-gradient-to-r from-violet-600 via-purple-600 to-violet-600'}`),
 			D('div', [

@@ -151,4 +151,4 @@ function createLogger(name) {
 	return log;
 }
 
-module.exports = createLogger('Crowlock API');
+module.exports = createLogger('Crowlock');

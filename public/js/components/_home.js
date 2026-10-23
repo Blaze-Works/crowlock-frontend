@@ -37,7 +37,7 @@ export default class HomeFeed extends Screen {
 
 		this.container.addClass('space-y-6');
 
-		this.skeletonLoader = [D('div', [
+		this.skeletonLoader = Array.from({ length: 3 }).map(_ => D('div', [
 			D('div', [
 				D('div', [
 					D('div', [D('div', null, 'bg-gray-800 w-full h-full object-cover')], 'w-10 h-10 rounded-full overflow-hidden'),
@@ -51,31 +51,7 @@ export default class HomeFeed extends Screen {
 					D('div', null, 'w-full h-[40px] bg-gray-800 rounded-xl')
 				], 'p-4 space-y-3')
 			])
-		], 'bg-gradient-to-br from-zinc-900 to-zinc-950 rounded-2xl overflow-hidden animate-pulse'), D('div', [
-			D('div', [
-				D('div', [
-					D('div', [D('div', null, 'bg-gray-800 w-full h-full object-cover')], 'w-10 h-10 rounded-full overflow-hidden'),
-					D('div', [
-						D('div', [D('div', null, 'w-40 h-[15px] bg-gray-800 rounded-[10px]')], 'flex items-center gap-2'), D('div', null, 'w-20 h-[10px] bg-gray-800 rounded-[10px] mt-2')
-					], 'flex-1')
-				], 'p-4 flex items-center gap-3'),
-				D('div', [
-					D('div', [D('div', null, 'w-[40%] h-5 bg-gray-800 rounded-[12px] mb-2'), D('div', null, 'w-full h-3 bg-gray-800 rounded-[12px]')])
-				], 'p-4 space-y-3')
-			])
-		], 'bg-gradient-to-br from-zinc-900 to-zinc-950 rounded-2xl overflow-hidden animate-pulse'),  D('div', [
-			D('div', [
-				D('div', [
-					D('div', [D('div', null, 'bg-gray-800 w-full h-full object-cover')], 'w-10 h-10 rounded-full overflow-hidden'),
-					D('div', [
-						D('div', [D('div', null, 'w-40 h-[15px] bg-gray-800 rounded-[10px]')], 'flex items-center gap-2'), D('div', null, 'w-20 h-[10px] bg-gray-800 rounded-[10px] mt-2')
-					], 'flex-1')
-				], 'p-4 flex items-center gap-3'),
-				D('div', [
-					D('div', [D('div', null, 'w-[40%] h-5 bg-gray-800 rounded-[12px] mb-2'), D('div', null, 'w-full h-3 bg-gray-800 rounded-[12px]')]),
-				], 'p-4 space-y-3')
-			])
-		], 'bg-gradient-to-br from-zinc-900 to-zinc-950 rounded-2xl overflow-hidden animate-pulse')];
+		], 'bg-gradient-to-br from-zinc-900 to-zinc-950 rounded-2xl overflow-hidden animate-pulse'));
 
 		this.app.display.mainContent.append(this.header, this.container);
 

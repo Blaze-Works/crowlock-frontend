@@ -37,7 +37,7 @@ function createApp() {
 
 	app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-	if (!Number(process.env.USE_VERCEL)) app.use(express.static(path.join(process.cwd(), process.env.NODE_ENV === 'production' ? 'dist/' : 'public/')));
+	if (!Number(process.env.USE_VERCEL)) app.use(express.static(path.join(process.cwd(), process.env.NODE_ENV === 'production' ? '/dist' : '/public')));
 
 	app.get('/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
 
@@ -59,7 +59,7 @@ function createApp() {
 	};
 
 	const HTTP_PORT = process.env.HTTP_PORT || 8080;
-	const HTTPS_PORT = process.env.HTTPS_PORT || 8443
+	const HTTPS_PORT = process.env.HTTPS_PORT || 8443;
 
 	const httpServer = http.createServer(app);
 	httpServer.listen(HTTP_PORT, () => log(`HTTP server running on port ${HTTP_PORT}`));

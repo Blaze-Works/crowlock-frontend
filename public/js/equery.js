@@ -1382,9 +1382,9 @@
 		return parent.contains(child);
 	};
 
-	let isTextNode = function (value) {
-		return isObject(value) && value.nodeType === 3;
-	};
+	let isEl = val => val instanceof Element;
+	let isObject = val => val instanceof Object;
+	let isTextNode = val => isObject(val) && val.nodeType === 3;
 
 	let clearElemt = function (elt) {
 		elt = typeof elt == 'string' ? getElemt(elt) : elt;
@@ -1400,18 +1400,11 @@
 			content = content();
 		}
 
-		return (Array.isArray(content) ? content : [content]).map(function (value) {
-			if (typeof value === 'function') {
-				value = value();
-			}
-
-			if (isEl(value) || isTextNode(value)) {
-				return value;
-			}
-
-			if (typeof value === 'string' && /\S/.test(value)) {
-				return document.createTextNode(value);
-			}
+		return (Array.isArray(content) ? content : content instanceof q ? Array.from(content) : [content]).map(function (value) {
+			if (typeof value === 'function') value = value();
+			if (isEl(value) || isTextNode(value)) return value;
+			if ((typeof value === 'string' && /\S/.test(value)) || typeof value === 'number') return document.createTextNode(value);
+			if (value instanceof q) return value[0];
 		}).filter(function (value) {
 			return value;
 		});
@@ -1918,11 +1911,7 @@
 		elt = typeof elt == 'string' ? getElemt(elt) : elt;
 
 		if (arguments.length > 2) append(elt, Array.from(arguments).splice(1));
-		else if (typeof content == 'string') elt.appendChild(document.createTextNode(content));
-		else if (content) {
-			if (content.nodeType) elt.appendChild(content);
-			else for (let i = 0; i < content.length; i++) append(elt, content[i]);
-		}
+		else if (content) normalizeContent(content).map(node => elt.appendChild(node));
 	};
 
 	/**
@@ -1933,35 +1922,24 @@
 	 */
 	let prepend = function (elt, content) {
 		elt = typeof elt == 'string' ? getElemt(elt) : elt;
-		if (typeof content == 'string') elt.insertBefore(document.createTextNode(content), elt.childNodes[0]);
-		else if (content) {
-			if (content.nodeType) elt.insertBefore(content, elt.childNodes[0]);
-			else for (let i = 0; i < content.length; i++) prepend(elt, content[i]);
-		}
+
+		if (arguments.length > 2) prepend(elt, Array.from(arguments).splice(1));
+		else if (content) normalizeContent(content).map(node => elt.insertBefore(node, elt.childNodes[0]));
 	};
 
 	let before = function (elt, content) {
 		elt = typeof elt == 'string' ? getElemt(elt) : elt;
-		if (typeof content == 'string') elt.parentNode.insertBefore(document.createTextNode(content), elt);
-		else if (content) {
-			if (content.nodeType) elt.parentNode.insertBefore(content, elt);
-			else for (let i = 0; i < content.length; i++) before(elt, content[i]);
-		}
+
+		if (arguments.length > 2) before(elt, Array.from(arguments).splice(1));
+		else if (content) normalizeContent(content).map(node => elt.parentNode.insertBefore(node, elt));
 	};
 
 	let after = function (elt, content) {
 		elt = typeof elt == 'string' ? getElemt(elt) : elt;
-		if (typeof content == 'string') {
-			if (elt.nextSibling) elt.parentNode.insertBefore(document.createTextNode(content), elt.nextSibling);
-			else elt.parentNode.appendChild(document.createTextNode(content));
-		} else if (content) {
-			if (content.nodeType) {
-				if (elt.nextSibling) elt.parentNode.insertBefore(content, elt.nextSibling);
-				else elt.parentNode.appendChild(content);
-			} else {
-				for (let i = 0; i < content.length; i++) after(elt, content[i]);
-			}
-		}
+
+		if (arguments.length > 2) after(elt, Array.from(arguments).splice(1));
+		else if (typeof content == 'string') after(elt, document.createTextNode(content));
+		else if (content) normalizeContent(content).map(node => elt.nextSibling ? elt.parentNode.insertBefore(node, elt.nextSibling) : elt.parentNode.appendChild(node));
 	};
 
 	let height = function (elt, val) {

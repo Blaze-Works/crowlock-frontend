@@ -1,109 +1,114 @@
-import { D, SVG, Notice, wait, fetchWithTimeout, handleError } from '../utils.js';
+import { D, SVG, Notice, truncate, log, Input, Button, wait, fetchWithTimeout, handleError } from '../utils.js';
 import Screen from './ui/Screen.js';
 import Profile from './ui/Profile.js';
-import '../impl/messaging.js';
+import { loadMessages } from '../impl/messaging.js';
 
-export default class ActivityScreen extends Screen {
+export default class Chat extends Screen {
 	constructor(app) {
-		super(app, 'Activity');
-		this.activeTab = 'notifications';
-		this.notifications = [];
-		this.messages = [];
+		super(app, 'Chat');
+
+		this.size = 4;
+		this.loaded = false;
+		this.convId = null;
 	}
 
-	init() {
-		const _this = this;
-		super.init();
+	init(node) {
+		super.init(!!node);
 
-		if (!this.app.data.userdata) {
-			this.app.navigateTo('/welcome', true);
-			return;
-		}
+		if (!this.app.data.userdata) { this.app.navigateTo('/welcome', true);return; }
+		if (!node) { this.app.navigateTo('/activity', true);return; }
 
-		this.reloadCount = 0;
-		this.header.append([
-			D('h1', 'Activity', 'text-2xl bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent'),
-			D('p', 'Stay updated with your transactions and messages', 'text-gray-400 text-sm mt-1')
-		]);
+		this.app.display.nodePos[3].remove();
+		this.app.display.addBtn.remove();
 
-		this.tabsList = D('div', [
-			D('button', [SVG.bell('w-4 h-4 mr-2'), 'Notification'], 'dark:data-[state=active]:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 text-background dark:text-muted-foreground inline-flex h-[calc(100%-1px)] items-center justify-center gap-1.5 rounded-xl border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-4 flex-1 data-[state=active]:bg-violet-600', { id: `radix-:rc:-trigger-notification`, type: 'button', role: 'tab', 'aria-selected': false, 'aria-controls': 'radix-:rc:-content-pos', 'data-state': 'inactive', 'data-slot': 'tabs-trigger', tabindex: '-1', 'data-panel': 'notifications', 'data-orientation': 'horizontal', 'data-radix-collection-item': '' }),
-			D('button', [SVG.activity('w-4 h-4 mr-2'), 'Messages'], 'dark:data-[state=active]:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 text-background dark:text-muted-foreground inline-flex h-[calc(100%-1px)] items-center justify-center gap-1.5 rounded-xl border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-4 flex-1 data-[state=active]:bg-violet-600', { id: `radix-:rc:-trigger-messages`, type: 'button', role: 'tab', 'aria-selected': false, 'aria-controls': 'radix-:rc:-content-pos', 'data-state': 'inactive', 'data-slot': 'tabs-trigger', tabindex: '-1', 'data-panel': 'messages', 'data-orientation': 'horizontal', 'data-radix-collection-item': '' })
-		], 'text-muted-foreground h-9 items-center justify-center rounded-xl flex flex-shrink-0 w-full bg-black/40 border border-violet-500/20 p-1', { role: 'tablist', 'aria-orientation': 'horizontal', 'data-slot': 'tabs-list', tabindex: '0', 'data-orientation': 'horizontal' }, 'outline: false');
+		this.header.append(
+			D('div', D('a', SVG.chevronLeft('h-5 w-5'), 'grid h-10 w-10 place-items-center cursor-pointer rounded-full bg-zinc-800').click(() => this.app.navigateTo('/activity')), 'w-10'),
+			D('div', null, 'h-4 w-24 my-auto rounded bg-gray-600 animate-pulse'), 
+			D('div', D('div', SVG.shieldCheck('h-4 w-4'), 'grid h-9 w-9 place-items-center rounded-full bg-green-600/15 text-gray-400'), 'w-10 flex justify-end')
+		).addClass('flex item-center justify-between');
 
-		this.notificationsSkeleton = D('div', Array.from({ length: 5 }).map(() =>
+		this.skeleton = [
+			D('div', D('div', [
+				D('div', null, 'h-10 w-10 rounded-full bg-gray-600 animate-pulse'),
+				D('div', [D('div', null, 'h-4 w-24 rounded bg-gray-600 animate-pulse'), D('div', null, 'h-4 w-16 rounded bg-gray-600 animate-pulse')], 'flex-1 min-w-0 space-y-1')
+			], 'flex items-center gap-3'), 'absolute left-0 right-0 h-[66px] mx-4 mb-3 block rounded-2xl p-3 bg-zinc-900 z-20'),
 			D('div', [
-				D('div', D('div', null, 'w-10 h-10 bg-gray-800 rounded-full'), 'mb-2'),
-				D('div', [
-					D('div', D('div', null, 'w-32 h-4 bg-gray-800 rounded'), 'mb-1'),
-					D('div', D('div', null, 'w-48 h-3 bg-gray-800 rounded'), ''),
-					D('div', D('div', null, 'w-20 h-3 bg-gray-800 rounded'), '')
-				], 'flex-1')
-			], 'flex items-start gap-3 p-4 bg-gray-800 rounded-xl')
-		), 'space-y-3 animate-pulse');
-
-		this.messagesSkeleton = D('div', [
-			D('div', [SVG.search('absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500'), D('div', null, 'w-full h-9 bg-gray-800 rounded-xl')], 'relative mb-4'),
-			D('div', Array.from({ length: 4 }).map(() =>
-				D('div', [
-					D('div', D('div', null, 'w-12 h-12 bg-gray-800 rounded-full'), 'mb-2'),
-					D('div', [
+				D('div', D('div', D('div', 
+					D('div', Array.from({ length: 3 }).map(_ => D('div', [
 						D('div', [
-							D('div', D('div', null, 'w-24 h-4 bg-gray-800 rounded'), 'mb-1'),
-							D('div', D('div', null, 'w-16 h-3 bg-gray-800 rounded'), '')
-						], 'flex items-center justify-between mb-1'),
-						D('div', D('div', null, 'w-40 h-3 bg-gray-800 rounded'), '')
-					], 'flex-1')
-				], 'flex items-center gap-3 p-4 bg-gray-800 rounded-xl')
-			), 'space-y-3')
-		], 'animate-pulse');
+							D('div', [
+								D('div', null, 'h-8 w-8 rounded-full bg-gray-600 animate-pulse'),
+								D('div', [
+									D('div', null, 'h-3 w-16 rounded-[12px] bg-gray-600'),
+									D('div', null, 'h-3 w-10 mt-0.5 rounded-[12px] bg-gray-600')
+								], 'h-12 w-32 p-2 rounded-xl bg-zinc-800 animate-pulse')
+							], 'flex gap-3 justify-start mb-2'),
 
-		this.failed = D('div', null, '');
+							D('div', [
+								D('div', [
+									D('div', null, 'h-3 w-16 rounded-[12px] bg-gray-600'),
+									D('div', null, 'h-3 w-10 mt-0.5 rounded-[12px] bg-gray-600')
+								], 'h-12 w-32 p-2 rounded-xl bg-zinc-800 animate-pulse'),
+							], 'flex justify-end mb-2')
 
-		this.notificationTab = D('div', this.notificationsSkeleton, 'flex-1 outline-none overflow-y-auto space-y-3', { 'data-state': 'inactive', 'data-orientation': 'horizontal', role: 'tabpanel', 'aria-labelledby': 'radix-:rf:-trigger-notifications', id: 'radix-:rf:-content-notifications', tabindex: 0, 'data-slot': 'tabs-content', 'data-panel': 'notifications', hidden: '' });
-		this.messageSearchInput = D('input', null, 'file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 flex h-9 w-full min-w-0 border px-3 py-1 text-base transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive pl-10 bg-zinc-900 border-violet-500/20 focus:border-violet-500/50 text-white rounded-xl', { placeholder: 'Search messages...', 'data-slot': 'input' });
-		this.messageTab = D('div', this.messagesSkeleton, 'flex-1 outline-none overflow-y-auto space-y-3', { 'data-state': 'inactive', 'data-orientation': 'horizontal', role: 'tabpanel', 'aria-labelledby': 'radix-:rf:-trigger-messages', id: 'radix-:rf:-content-messages', tabindex: 0, 'data-slot': 'tabs-content', 'data-panel': 'messages', hidden: '' });
+						], 'mx-auto w-full max-w-3xl flex flex-col')
+					], 'relative w-full visibility-visible')), 'h-full w-full pt-[72px] overflow-x-hidden overflow-y-auto pointer-coarse:overscroll-y-contain')
+				, 'relative flex min-h-0 w-full flex-1 shrink'), 'flex min-h-0 flex-1 flex-col'), 'relative isolate w-full flex-1 flex-col overflow-y-auto'),
+				D('div', D('div', D('div', D('div', [
+					D('div', null, 'h-6 w-32 rounded-xl bg-gray-600 animate-pulse'),
+					D('div', null, 'h-3 w-40 rounded-xl bg-gray-600 animate-pulse'),
+					D('div', [
+						D('div', D('div', null, 'h-7 w-7 rounded-full bg-gray-600 animate-pulse'), 'flex shrink-0 items-center'),,
+						D('div', [D('div', null, 'h-7 w-[70px] rounded-xl bg-gray-600 animate-pulse'), D('div', null, 'h-7 w-7 rounded-full bg-gray-600 animate-pulse')], 'ml-auto flex shrink-0 items-center gap-1.5'),
+					], '@container flex items-center gap-1 flex-nowrap')
+				], 'flex flex-col bg-zinc-900 shadow-surface-xl transition-colors duration-150 rounded-xl ease-in-out rounded-6.5 gap-2 p-3 relative z-10'), 'relative z-20'), 'mx-auto w-full max-w-xl flex max-h-[calc(100%-37px)] shrink-0 pb-2 flex-col overflow-visible px-2'), 'flex')
+			], 'fs-mask flex min-h-0 w-full flex-grow flex-col overflow-y-auto')
+		];
 
-		this.tabContent = D('div', [this.notificationTab, this.messageTab], 'flex flex-col flex-grow gap-2 w-full py-5', { dir: 'ltr', 'data-orientation': 'horizontal', 'data-slot': 'tab' });
-		this.container.addClass('space-y-6').append(D('div', [this.tabsList, this.tabContent], 'w-full flex flex-col', { 'data-slot': 'tabs' }));
-		this.app.display.mainContent.append([this.header, this.container]);
+		this.chatScroller =  D('div', null, 'relative flex min-h-0 w-full flex-1 shrink');
 
-		this.tabsList.find('button').click(function () {
-			const _tab = EQuery(this).getAttr('data-panel');
-			_this.tabsList.find('button').removeClass('text-foreground').addClass('text-background').attr({ 'data-state': 'inactive' });
-			EQuery(this).addClass('text-foreground').removeClass('text-background').attr({ 'data-state': 'active' });
-			_this.tabContent.find('div[data-panel]').attr({ hidden: true, 'data-state': 'inactive' });
-			_this.tabContent.find(`div[data-panel=${_tab}]`).attr({ 'data-state': 'active' }).removeAttr('hidden');
-			_this.activeTab = _tab;
-		});
+		this.container.addClass('relative flex flex-col overflow-y-hidden');
 
-		this.tabsList.find('button')[0].click();
+		this.empty = this.createEmptyState('No Recent Transactions', 'Create an Escrow to view it\'s history here', 'transaction');
+
+		this.failed = this.createEmptyState('Failed to load chat', 'Something went wrong, have another go?', 'transaction', Button([SVG.reload('size-4'), 'Try again']).click(() => this.reload(true)));
+		this.app.display.mainContent.append(this.header, this.container).addClass('h-screen');
+		this.app.display.container.find('[data-gradient-overlay]').removeClass('min-h-screen').addClass('h-screen overflow-y-hidden');
+		this.convId = node;
 		this.reload();
+
 	}
 
 	async reload(force = false) {
 		if (!this.opened) return;
-		if (!force && this.notifications.length !== 0)
-			{ this.buildContent();return; }
 		if (force) this.reloadCount = 0;
-		if (this.reloadCount >= 10) {
+		if (this.reloadCount >= 4) {
 			this.container.removeChildren().append(this.failed);
 			this.app.display.container.find('[data-gradient-overlay]').attr({ 'data-gradient-overlay': 'linear' });
 			return;
 		}
+		this.empty.remove();
 		this.failed.remove();
+		this.app.display.nodePos[3].removeChildren();
+		this.app.display.addBtn.remove();
+		this.app.display.container.find('[data-gradient-overlay]').attr({ 'data-gradient-overlay': 'off' });
+		this.container.removeChildren().append(this.skeleton);
+
+		if (!this.app.ready) {
+			await wait(5000);
+			this.reload();
+			return;
+		}
 
 		try {
-			const data = await fetchWithTimeout('/api/activity', {
-				method: 'POST',
-				headers: await this.app.authHeaders()
-			});
-			this.notifications = data.notifications || [];
-			this.messages = data.messages || [];
+			const res = await loadMessages(this.convId, { limit: 100 });
+			this.message = res.messages;
+			this.participants = res.participants;
+			this.container.removeChildren();
 		} catch (err) {
 			Notice(await handleError(err), 'error');
 			if (err.status == 500) { this.container.removeChildren().append(this.failed);return }
-			await wait(2000);
+			await wait(5000);
 			this.reloadCount++;
 			this.reload();
 			return;
@@ -112,98 +117,54 @@ export default class ActivityScreen extends Screen {
 	}
 
 	buildContent() {
-		this.notificationTab.removeChildren();
-		this.messageTab.removeChildren();
+		this.header.removeChildren().append(
+			D('div', D('a', SVG.chevronLeft('h-5 w-5'), 'grid h-10 w-10 place-items-center cursor-pointer rounded-full bg-zinc-800').click(() => this.app.navigateTo('/activity')), 'w-10'),
+			D('div', `Chat with @${this.participants[0].username}`, 'my-auto text-gray-400 font-bold'), 
+			D('div', D('div', SVG.shieldCheck('h-4 w-4'), 'grid h-9 w-9 place-items-center rounded-full bg-green-600/15 text-gray-400'), 'w-10 flex justify-end')
+		);
 
-		this.notificationTab.append(this.notifications.map(this.notificationBuilder));
+		this.outer = D('div', this.chatScroller, 'fs-mask flex min-h-0 w-full flex-grow flex-col overflow-y-auto');
+		this.container.append(this.outer);
 
-		const messageSearchContainer = D('div', [SVG.search('absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500'), this.messageSearchInput], 'relative mb-4');
-		const messageBottom = D('div', [
-			D('div', [
-				D('div', SVG.shield('w-5 h-5 text-violet-400'), 'w-10 h-10 bg-violet-600/20 rounded-full flex items-center justify-center'),
-				D('div', [
-					D('h4', 'Secure In-Wallet Chat', 'text-white text-sm mb-1'),
-					D('p', 'All messages are encrypted end-to-end', 'text-xs text-gray-400')
-				])
-			], 'flex items-center gap-3')
-		], 'mt-6 p-4 bg-gradient-to-r from-violet-600/10 to-purple-600/10 rounded-xl border border-violet-500/20');
-
-		this.messageTab.append(messageSearchContainer, this.messages.map(this.messageBuilder), messageBottom);
-
-		this.tabsList.find('button:first-child').append(this.notifications.filter(n => !n.read).length > 0 && D('span', this.notifications.filter(n => !n.read).length, 'absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center'));
-		this.tabsList.find('button:last-child').append(this.messages.reduce((sum, m) => sum + m.unread, 0) > 0 && D('span', this.messages.reduce((sum, m) => sum + m.unread, 0), 'absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center'));
+		this.buildChatBox();
+		this.buildChats();
 	}
 
-	notificationBuilder(notification, index) {
-		const Icon = this.getNotificationIcon(notification.type);
-		return D('div', [
-			D('div', [
-				D('div', [(
-					notification.avatar ?
-						D('div', D('img', null, 'w-full h-full object-cover', { src: notification.avatar, alt: 'User' }), 'w-full h-full rounded-full overflow-hidden') :
-						Icon('h-5 w-5')
-				)], `w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${this.getNotificationColor(notification.type)}`),
-				D('div', [
-					D('div', [
-						D('h4', notification.title, 'text-white text-sm'),
-						D('span', notification.time, 'text-xs text-gray-500 whitespace-nowrap ml-2')
-					], 'flex items-start justify-between mb-1'),
-					D('p', notification.message, 'text-sm text-gray-400'), (!notification.read && D('div', D('div', 'New', 'bg-violet-600/20 text-violet-400 border-violet-600/30 text-xs'), 'mt-2'))
-				], 'flex-1')
-			], 'flex gap-3')
-		], `p-4 bg-zinc-900 rounded-xl border transition-colors ${notification.read ? 'border-violet-500/20' : 'border-violet-500/50 bg-gradient-to-r from-violet-900/10 to-transparent'} animate-slideRight delay-[${index * 0.05}s]`, { 'data-notification': notification.id })
+	buildChatBubble(chat, isSent) {
+
 	}
 
-	messageBuilder(message, index) {
-		return D('div', [
-			D('div', [
-				D('div', [
-					Profile.profileImage(this.app, message.user),
-					(message.user.online && D('div', null, 'absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-zinc-900'))
-				], 'relative'),
-				D('div', [
-					D('div', [
-						D('div', [
-							D('h4', `${message.user.firstname} ${message.user.lastname}`, 'text-white text-sm'),
-							D('p', message.user.content, 'text-xs text-gray-500')
-						]),
-						D('div', [
-							D('span', message.time, 'text-xs text-gray-500 whitespace-nowrap'), (message.unread > 0 && D('div', message.unread, 'w-5 h-5 bg-violet-600 rounded-full flex items-center justify-center text-xs'))
-						], 'flex flex-col items-end gap-1')
-					], 'flex items-center justify-between mb-1'),
-					D('p', message.lastMessage, 'text-sm text-gray-400 truncate')
-				], 'flex-1 min-w-0')
-			], 'flex gap-3')
-		], `p-4 bg-zinc-900 rounded-xl border hover:border-violet-500/50 transition-colors cursor-pointer ${message.unread > 0 ? 'border-violet-500/50 bg-gradient-to-r from-violet-900/10 to-transparent' : 'border-violet-500/20'} animate-slideRight delay-[${index * 0.05}s]`, { 'data-message': message.id })
+	buildChats() {
+		const chat = 0;
 	}
 
-	getNotificationIcon(type) {
-		switch (type) {
-			case 'transaction':
-				return SVG.trendingUp;
-			case 'delivery':
-				return SVG.package;
-			case 'escrow':
-				return SVG.shield;
-			case 'social':
-				return SVG.bell;
-			default:
-				return SVG.bell;
-		}
+	buildChatBox() {
+		this.addBtn = Button(SVG.add('w-5 h-5'), 'zinc').removeClass('h-9', 'px-4', 'py-2', 'has-[>svg]:px-3', 'rounded-xl').addClass('p-1 rounded-full');
+		this.sendBtn = Button(SVG.send('w-5 h-5'), 'zinc').removeClass('h-9', 'px-4', 'py-2', 'has-[>svg]:px-3', 'rounded-xl').addClass('p-1 rounded-full');
+
+		this.dropper = D('div', null, 'mt-3 flex flex-warp gap-2');
+		this.messageInput = D('textarea', null, 'min-h-6 max-h-32 w-full resize-none bg-transparent text-sm text-white outline-none placeholder:text-gray-500', { id: 'chat-input', rows: 1, placeholder: 'Write a message...', 'aria-label': 'Message' }).on('input', event => {
+			event.target.style.height = 'auto';
+			event.target.style.height = `${event.target.scrollHeight}px`;
+		});
+		this.inputContainer = D('div', D('div', this.messageInput, 'relative grid w-full flex-1'), 'w-full min-w-0');
+		this.q = D('div', [
+				D('div', this.addBtn, 'flex shrink-0 items-center'),
+				D('div', this.sendBtn, 'ml-auto flex shrink-0 items-center gap-1.5')
+			], 'flex items-center gap-1 flex-nowrap');
+
+		this.textbox = D('div', D('div', D('div', D('div', [this.inputContainer, this.q], 'flex flex-col bg-zinc-900 shadow-surface-xl transition-all duration-150 rounded-xl ease-in-out rounded-6.5 gap-2 p-3 relative z-10') , 'relative z-20') , 'mx-auto w-full max-w-xl flex max-h-[calc(100%-37px)] shrink-0 pb-2 flex-col overflow-visible px-2') , 'flex');
+		this.outer.append(this.textbox);
 	}
 
-	getNotificationColor(type) {
-		switch (type) {
-			case 'transaction':
-				return 'bg-green-600/20 text-green-400';
-			case 'delivery':
-				return 'bg-blue-600/20 text-blue-400';
-			case 'escrow':
-				return 'bg-violet-600/20 text-violet-400';
-			case 'social':
-				return 'bg-purple-600/20 text-purple-400';
-			default:
-				return 'bg-gray-600/20 text-gray-400';
-		}
+	update() {
+		!this.pendingFiles.length && this.dropper.remove();
+		this.dropper.removeChildren().append(this.pendingFiles.map((a, i) => D('div', [
+			'image' == a.kind ? D('div', ImageWithFallback({ src: a.src }), 'h-8 w-8 rounded-md') :
+			SVG[a.kind == 'video' ? 'video' : 'file']('h-4 w-4 text-violet-400'),
+			D('span', a.name, 'max-w-[7rem] truncate text-[11px] font-medium text-gray-400'),
+			D('button', SVG.close('w-4 h-4'), 'ring-offset-background focus:ring-ring rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0', { type: 'button' }).click(() => { this.pendingFiles = this.pendingFiles.filter((_, idx) => idx !== i); this.update() })
+		], 'relative flex items-center gap-2 rounded-xl border border-gray-400/40 bg-zinc-800/20 h-10 px-2.5 py-2', { key: i })));
+		this.inputContainer.before(this.dropper);
 	}
 }

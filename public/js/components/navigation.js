@@ -13,9 +13,9 @@ export default class NavigationBar {
 			const _obj = {};
 			this.states.forEach(b => {
 				_obj[b] = D('button', [
-					D('div', [SVG[b]('size-6 transition-colors text-gray-400')], 'relative z-10'),
-					D('span', this.app.inNav[b].name, 'relative z-10 text-xs transition-colors text-gray-400')
-				], 'relative flex flex-col items-center gap-1 py-2 px-1 rounded-x1 transition-all [&_span]:text-gray-400 [&_svg]:text-gray-400 ', { 'data-category': b, 'data-route': `/${b}`, 'data-selected': 'inactive' }).click(e => {
+					D('div', [SVG[b]('size-6 transition-colors')], 'relative z-10'),
+					D('span', this.app.inNav[b].name, 'relative z-10 text-xs transition-colors')
+				], 'relative flex flex-col items-center gap-1 py-2 px-1 rounded-x1 transition-all text-gray-400 hover:text-white', { 'data-category': b, 'data-route': `/${b}`, 'data-selected': 'inactive' }).click(e => {
 					e.preventDefault();
 					this.app.navigateTo(`/${b}`);
 				});
@@ -30,7 +30,7 @@ export default class NavigationBar {
 					D('div', Object.values(this.navBtns), 'grid gap-1 p-2')
 				], 'overflow-hidden')
 			], 'max-w-2xl mx-auto')
-		], 'fixed left-0 z-20 data-[orientation=portrait]:right-0 data-[orientation=landscape]:top-[50%] data-[orientation=landscape]:translate-y-[-50%] data-[orientation=portrait]:bottom-0 [&>div]:data-[orientation=portrait]:px-4 [&>div]:data-[orientation=portrait]:pb-4 [&>div]:data-[orientation=portrait]:py-4 [&>div]:data-[orientation=landscape]:pl-4 [&_.grid]:data-[orientation=landscape]:grid-rows-4 [&_.grid]:data-[orientation=portrait]:grid-cols-4 [&>div>div]:data-[orientation=portrait]:bg-zinc-900/20 [&>div>div]:data-[orientation=portrait]:backdrop-blur-xl [&>div>div]:data-[orientation=portrait]:border [&>div>div]:data-[orientation=portrait]:border-violet-500/20 [&>div>div]:data-[orientation=portrait]:rounded-2xl [&>div>div]:data-[orientation=portrait]:shadow-[0_4px_30px_rgba(139,92,246,.2)] [&[data-orientation=landscape]_button_.absolute]:!-translate-x-32 [&[data-orientation=landscape]_[data-selected=active]_span]:text-violet-400 [&[data-orientation=landscape]_[data-selected=active]_svg]:text-violet-400 [&[data-orientation=portrait]_[data-selected=active]_span]:text-white max-sm:[&[data-orientation=portrait]_span]:hidden max-sm:[&[data-orientation=portrait]_button>div:first-child]:py-3 [&[data-orientation=portrait]_[data-selected=active]_svg]:text-white');
+		], 'fixed left-0 z-20 data-[orientation=portrait]:right-0 data-[orientation=landscape]:top-[50%] data-[orientation=landscape]:translate-y-[-50%] data-[orientation=portrait]:bottom-0 [&>div]:data-[orientation=portrait]:px-4 [&>div]:data-[orientation=portrait]:pb-4 [&>div]:data-[orientation=portrait]:py-4 [&>div]:data-[orientation=landscape]:pl-4 [&_.grid]:data-[orientation=landscape]:grid-rows-4 [&_.grid]:data-[orientation=portrait]:grid-cols-5 [&>div>div]:data-[orientation=portrait]:bg-zinc-900/20 [&>div>div]:data-[orientation=portrait]:backdrop-blur-xl [&>div>div]:data-[orientation=portrait]:border [&>div>div]:data-[orientation=portrait]:border-violet-500/20 [&>div>div]:data-[orientation=portrait]:rounded-2xl [&>div>div]:data-[orientation=portrait]:shadow-[0_4px_30px_rgba(139,92,246,.2)] [&[data-orientation=landscape]_button_.absolute]:!-translate-x-32 [&[data-orientation=landscape]_[data-selected=active]_span]:text-violet-400 [&[data-orientation=landscape]_[data-selected=active]_svg]:text-violet-400 [&[data-orientation=portrait]_[data-selected=active]_span]:text-white max-sm:[&[data-orientation=portrait]_span]:hidden max-sm:[&[data-orientation=portrait]_button>div:first-child]:py-3 [&[data-orientation=portrait]_[data-selected=active]_svg]:text-white');
 
 		this.show();
 		this.resize();
@@ -39,17 +39,18 @@ export default class NavigationBar {
 
 	setActive(category) {
 		this.currentState = category;
-		if (this.states.indexOf(this.currentState) == -1) {
+		/*if (this.states.indexOf(this.currentState) == -1) {
 			this.currentState = 'home';
-		} else this.moveElementWithAnimation(this.navOutline, this.navBtns[this.currentState]);
+		} else */this.moveElementWithAnimation(this.navOutline, this.navBtns[this.currentState]);
 
-		this.nav.find('button svg, button span').addClass('text-gray-400').removeClass('text-white');
+		this.nav.find('button').addClass('text-gray-400').removeClass('text-white');
 		this.nav.find('button').attr({ 'data-selected': 'inactive' });
-		this.navBtns[this.currentState].find(`svg, span`).removeClass('text-gray-400').addClass('text-white');
-		this.navBtns[this.currentState].attr({ 'data-selected': 'active' });
+		this.navBtns[this.currentState]?.removeClass('text-gray-400').addClass('text-white');
+		this.navBtns[this.currentState]?.attr({ 'data-selected': 'active' });
 	}
 
 	moveElementWithAnimation(child, parent) {
+		if (!parent) { child.remove();return; };
 		const firstRect = child.getBoundingClientRect();
 		parent.append(child);
 

@@ -4,10 +4,10 @@ export default class Modal {
 	constructor(app, data) {
 		this.app = app;
 		this.data = data;
-		this.closeBtn = D('button', [SVG.close('w-4 h-4'), D('span', 'Close', 'sr-only')], 'ring-offset-background focus:ring-ring absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-4', { type: 'button' });
+		this.closeBtn = D('button', [D('span', 'Close', 'max-sm:hidden text-[11px] text-gray-400/80 mr-2 '), SVG.close('w-4 h-4')], 'flex ring-offset-background focus:ring-ring absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-4', { type: 'button' });
 		this.bottom = D('div', null, 'flex w-full items-center justify-center rounded-xl p-1');
 		this.content = D('div', null, 'flex flex-col gap-2 w-full', { dir: 'ltr', 'data-orientation': 'horizontal', 'data-slot': 'tab' });
-		this.header = D('div', [D('h2', data.header, 'text-lg leading-none font-semibold bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent', { id: 'radix-:r4:', 'data-slot': 'Modal-title' })], 'flex flex-col gap-2 text-center mb-6 sm:mb-0 sm:text-left', { 'data-slot': 'Modal-header' });
+		this.header = D('div', [D('h2', data.header, 'text-lg leading-none font-semibold bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent', { id: 'radix-:r4:', 'data-slot': 'Modal-title' })], 'flex flex-col gap-2 text-center mb-6 sm:mb-0 sm:text-left', { 'data-slot': 'modal-header' });
 		this.elt = D('div', null, 'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 relative z-50 flex flex-col sm:pt-6 pt-12 w-full sm:max-h-[80vh] overflow-y-auto gap-4 sm:rounded-lg mb-border p-6 shadow-lg sm:max-w-lg max-sm:w-screen max-sm:h-screen bg-zinc-900 border-violet-500/30 text-white', { role: 'diaolg', id: 'radix-:r3:', 'aria-describedby': 'radix-:r5:', 'aria-labelledby': 'radix-:r4:', 'data-state': 'open', 'data-slot': 'Modal-content', tabindex: -1 });
 		this.outer = D('div', [this.elt], 'fixed top-0 left-0 flex items-center justify-center min-h-screen w-full bg-black/40 z-50 overflow-hidden', { 'data-slot': 'overlay' });
 
@@ -48,6 +48,7 @@ export default class Modal {
 				}
 			}
 		}
+
 		if (data.btns) {
 			const self = this;
 			for (let btn in data.btns) {
@@ -67,6 +68,7 @@ export default class Modal {
 
 		this.closeBtn.click(() => history.back());
 		this.outer.click((e) => e.currentTarget == e.target && history.back());
+		this.elt.keydown((e) => e.key == 'Escape' && history.back());
 	}
 
 	close() {

@@ -1,4 +1,4 @@
-import { D, SVG, Button, ImageWithFallback, Notice, wait, fetchWithTimeout, handleError } from '../utils.js';
+import { D, SVG, Button, ImageWithFallback, Notice, truncate, wait, fetchWithTimeout, handleError } from '../utils.js';
 import Screen from './ui/Screen.js';
 import Profile from './ui/Profile.js';
 import Dropdown from './ui/Dropdown.js';
@@ -79,6 +79,7 @@ export default class ProfileScreen extends Screen {
 	async reload(force = false) {
 		if (!this.opened) return;
 		if (!force && this.loaded) { this.buildContent(); return; }
+		if (force) this.reloadCount = 0;
 		if (this.reloadCount >= 4 && !force) {
 			if (this.app.data.profile !== undefined) {
 				this.container.removeChildren();
@@ -92,6 +93,7 @@ export default class ProfileScreen extends Screen {
 			return;
 		}
 		this.failed.remove();
+		this.app.display.container.find('[data-gradient-overlay]').attr({ 'data-gradient-overlay': 'off' });
 		this.container.removeChildren().append(this.profileSkeleton, this.tokensSkeleton, this.achievementsSkeleton, this.tabsSkeleton);
 
 		try {
@@ -112,7 +114,11 @@ export default class ProfileScreen extends Screen {
 			this.loaded = true;
 		} catch (err) {
 			Notice(await handleError(err), 'error');
-			if (err.status == 500) { this.container.removeChildren().append(this.failed);return }
+			if (err.status == 500) {
+				this.container.removeChildren().append(this.failed);
+				this.app.display.container.find('[data-gradient-overlay]').attr({ 'data-gradient-overlay': 'linear' });
+				return;
+			}
 			await wait(2000);
 			!!(this.app.data.profile && this.app.data.alpha) && this.container.after(this.skipBtn);
 			this.reloadCount++;
@@ -133,8 +139,8 @@ export default class ProfileScreen extends Screen {
 					D('button', SVG.settings('w-5 h-5'), 'bg-black/30 backdrop-blur-sm text-white hover:bg-black/50 rounded-full').click(ev => {
 						const dropdown = new Dropdown(this.app, [
 							{ 'Signed in as': `@${this.app.data.userdata.username }` },
-							{ 'Account Settings': ['settings', () => this.opwnSettings()] },
-							{ 'Sign Out': ['out', () => this.app.logout(true)] }
+							{ 'Profile Settings': ['settings', () => this.openSettings()] },
+							{ 'Sign Out': ['log', () => this.app.logout(true)] }
 						], ev)
 					})
 				], 'absolute top-2 right-2')
@@ -143,33 +149,33 @@ export default class ProfileScreen extends Screen {
 			D('div', [
 				D('div', [
 					D('div', [
-						ImageWithFallback({ src: this.app.data.userdata.avatar, alt: 'Profile' }),
-						this.app.data.userdata.verified && D('span', SVG.badgeCheck('w-5 h-5'), 'absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full bg-zinc-900 text-white shadow-glow')
-					], 'relative w-24 h-24 bg-zinc-900 border-4 z-[4] border-zinc-900 rounded-full overflow-hidden'),
+						ImageWithFallback({ src: this.app.data.userdata.avatar, alt: 'Profile' }).addClass('rounded-full'),
+						this.app.data.userdata.verified && D('span', SVG.badgeCheck('w-5 h-5 text-violet-400'), 'absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full bg-zinc-900 text-white shadow-glow')
+					], 'relative w-24 h-24 bg-zinc-900 border-4 z-[4] border-zinc-900 rounded-full'),
 					D('div', [
 						D('div', [
-							D('h2', `${this.app.data.userdata.firstname} ${this.app.data.userdata.lastname}`, 'text-xl text-white'), this.app.data.userdata.verified && SVG.badgeCheck('w-5 h-5 text-violet-400')
+							D('h2', `${this.app.data.userdata.firstname} ${this.app.data.userdata.lastname}`, 'text-xl text-white')
 						], 'flex items-center gap-2 mb-1'),
-						D('p', `@${this.app.data.userdata.username}${this.app.data.userdata.verified && ' • Verified'}`, 'text-gray-500 text-sm')
+						D('p', `@${this.app.data.userdata.username}${this.app.data.userdata.verified ? ' • Verified' : ''}`, 'text-gray-500 text-sm')
 					], 'flex-1 mt-16')
 				], 'flex items-center gap-4 -mt-14'),
 				D('div', [
-					{ label: 'Posts', value: this.app.data.profile.stats.posts },
 					{ label: 'Products', value: this.app.data.profile.stats.products },
+					{ label: 'Reviews', value: this.app.data.profile.reviews.length },
 					{ label: 'Followers', value: this.app.data.profile.stats.followers },
 					{ label: 'Following', value: this.app.data.profile.stats.following }
 				].map(stat =>
 					D('div', [
-						D('div', stat.value.toString(), 'text-white mb-1'),
+						D('div', truncate(stat.value).toString(), 'text-white mb-1'),
 						D('div', stat.label, 'text-xs text-gray-500')
 					], 'text-center p-2 bg-black/40 rounded-lg', { 'data-key': stat.label })
 				), 'grid grid-cols-4 gap-2'),
 				D('div', [
 					D('div', [
 						SVG.product('w-5 h-5 text-violet-400'),
-						D('span', 'Trader Mode', 'text-sm text-white')
+						D('span', 'Seller Mode', 'text-sm text-white')
 					], 'flex items-center gap-2'),
-					D('input', null, 'ml-auto', { type: 'checkbox', checked: true }).click(() => { })
+					D('input', null, 'ml-auto', { type: 'checkbox', checked: true }).click(() => {  })
 				], 'flex items-center justify-between p-3 bg-black/40 rounded-xl border border-violet-500/20')
 			], 'bg-zinc-900 rounded-b-2xl border border-violet-500/20 p-5 pt-0 space-y-4')
 		], 'relative top-0 pt-4 animate-slideDown');
@@ -180,7 +186,7 @@ export default class ProfileScreen extends Screen {
 					SVG.star('w-5 h-5 text-yellow-300'),
 					D('span', 'Crow Tokens', 'text-sm text-white/80')
 				], 'flex items-center gap-2 mb-2'),
-				D('p', this.app.data.profile.stats.crowTokens.total.toString(), 'text-2xl text-white'),
+				D('p', truncate(this.app.data.profile.stats.crowTokens.total).toString(), 'text-2xl text-white'),
 				D('p', `+${this.app.data.profile.stats.crowTokens.inc} this month`, 'text-xs text-white/60 mt-1')
 			], 'p-4 bg-gradient-to-br from-violet-600 to-purple-600 rounded-xl shadow-lg shadow-violet-500/30'),
 			D('div', [
@@ -196,15 +202,15 @@ export default class ProfileScreen extends Screen {
 		this.verification = D('div', [
 			D('h3', 'Verification', 'text-white mb-3'),
 			D('div',  [
-				{ label: 'Email address', value: this.app.data.profile.stats.verification.email, fn: () => {} },
-				{ label: 'Phone number', value: this.app.data.profile.stats.verification.phone, fn: () => {} },
-				{ label: 'Government ID', value: this.app.data.profile.stats.verification.govId, fn: () => {} },
-				{ label: 'Home Address', value: this.app.data.profile.stats.verification.address, fn: () => {} }
+				{ label: 'Email address', value: this.app.data.userdata.verification.email, fn: () => {} },
+				{ label: 'Phone number', value: 'Not avaliable'/* this.app.data.userdata.verification.phone */, fn: () => {} },
+				{ label: 'Government ID', value: 'Not avaliable'/* this.app.data.userdata.verification.govId */, fn: () => {} },
+				{ label: 'Home Address', value: 'Not avaliable'/* this.app.data.userdata.verification.address */, fn: () => {} }
 			].map(item =>
 				D('div', [
 					D('span', item.label, 'flex-grow text-md font-medium text-gray-600'),
-					D('div', 'Not started', 'rounded-full px-2 py-0.5 text-[10px] font-semibold data-[state=Verified]:text-green-600 data-[state=Verified]:bg-green-700/20 data-[state=Pwnsing]:color-yellow-600 data-[state=Pending]:bg-yellow-600/20 text-red-600 bg-red-700/20', { 'data-state': item.value }),
-					D('div', SVG.arrowUpRight('w-5 h-5'), 'ml-2')
+					D('div', item.value, 'rounded-full px-2 py-0.5 text-[10px] font-semibold data-[state=Verified]:text-green-600 data-[state=Verified]:bg-green-700/20 text-red-600 bg-red-700/20', { 'data-state': item.value }),
+					item.value !== 'Verified' && D('div', SVG.arrowUpRight('w-5 h-5'), 'ml-2 cursor-pointer hover:text-gray-400').click(item.fn)
 				], 'flex items-center justify-between rounded-2xl border border-violet-500/20 bg-black/40 p-3')
 			), 'bg-zinc-900 rounded-2xl border border-violet-500/20 p-5 mt-2 space-y-2')
 		], 'animate-fadeIn', null, 'animation-delay: 0.2s');
@@ -214,31 +220,22 @@ export default class ProfileScreen extends Screen {
 			D('div', this.achievementBuilder(this.app.data.profile.achievements), 'grid grid-cols-2 gap-2 [&:has(div:nth-child(1):last-child)]:grid-cols-1')
 		], 'animate-fadeIn', null, 'animation-delay: 0.3s');
 
-		const tabHeader = D('div', [
-			D('button', 'Posts', 'flex-1 data-[state=active]:bg-violet-600 rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:text-foreground text-background dark:text-muted-foreground', { 'data-panel': 'posts', 'data-state': 'inactive' }),
-			D('button', 'Products', 'flex-1 data-[state=active]:bg-violet-600 rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:text-foreground text-background dark:text-muted-foreground', { 'data-panel': 'products', 'data-state': 'inactive' }),
-			D('button', 'Reviews', 'flex-1 data-[state=active]:bg-violet-600 rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:text-foreground text-background dark:text-muted-foreground', { 'data-panel': 'reviews', 'data-state': 'inactive' })
-		], 'w-full bg-zinc-900 border border-violet-500/20 rounded-xl p-1 flex');
-		const tabContent = D('div', [
-			D('div', this.postBuilder(this.app.data.profile.posts), 'flex flex-col gap-3', { 'data-panel': 'posts', 'data-state': 'active' }),
-			D('div', this.productsBuilder(this.app.data.profile.products), 'grid grid-cols-3 gap-3 [&:has(div:nth-child(1):last-child)]:grid-cols-1 hidden', { 'data-panel': 'products', 'data-state': 'inactive' }),
-			D('div', this.reviewsBuilder(this.app.data.profile.reviews), 'space-y-3 hidden', { 'data-panel': 'reviews', 'data-state': 'inactive' })
-		], 'mt-4');
+		this.settings = D('div', [
+			D('h3', 'Settings', 'text-white mb-3'),
+			D('div', [
+				{ i: SVG.bell, l: 'Notifications', h: 'Push, email, SMS' },
+				{ i: SVG.shieldCheck, l: 'Security', h: 'PIN, biometrics, 2FA, Devices' },
+				{ i: SVG.settings, l: 'Preferences', h: 'Language, theme' },
+				{ i: SVG.circleQuestion, l: 'Support', h: 'Help center & chat' }
+			].map(item => D('button', [
+					D('div', item.i('h-4.5 w-4.5'), 'grid h-10 w-10 place-items-center rounded-xl bg-violet-700/20 text-white'),
+					D('div', [D('p', item.l, 'text-[13px] font-semibold text-gray-400'), D('div', item.h, 'text-[11px] text-gray-600')], 'flex-1'),
+					SVG.chevronRight('h-4 w-4 text-gray-600')
+				], 'flex items-center gap-3 w-full p-3.5 text-left')
+			), 'divide-y divide-violet-400/20 rounded-2xl border border-violet-400/20 bg-zinc-900 overflow-hidden space-y-2')
+		], 'animate-fadeIn', null, 'animate-delay: 0.4s');
 
-		tabHeader.find('button').click(function () {
-			const _tab = EQuery(this).getAttr('data-panel');
-			tabHeader.find('button').removeClass('text-foreground').addClass('text-background').attr({ 'data-state': 'inactive' });
-			EQuery(this).addClass('text-foreground').removeClass('text-background').attr({ 'data-state': 'active' });
-			tabContent.find('div[data-panel]').addClass('hidden').attr({ 'data-state': 'inactive' });
-			tabContent.find(`div[data-panel=${_tab}]`).removeClass('hidden').attr({ 'data-state': 'active' });
-		});
-
-		tabHeader.find('button:first-child')[0].click();
-		this.tabs = D('div', [tabHeader, tabContent], 'animate-fadeIn', null, 'animation-delay: 0.4s');
-
-		this.optiona = D('div');
-
-		this.container.append(this.profile, this.verification, this.achievements, this.options, null);
+		this.container.append(this.profile, this.verification, this.achievements, this.settings, D('a', [SVG.log('h-4 w-4'), ' Logout'], 'mt-5 mb-6 flex h-13 items-center justify-center gap-2 rounded-2xl border border-red-600/25 bg-red-600/10 py-3.5 text-sm font-semibold text-red-600 hover:bg-red-600 hover:text-white hover:border-red-500 hover:cursor-pointer transition-[0.3s]').click(() => this.app.logout()));
 	}
 
 	achievementBuilder(achievements) {
@@ -274,7 +271,7 @@ export default class ProfileScreen extends Screen {
 	}
 
 	productsBuilder(products) {
-		if (products.length == 0) return this.createEmptyState('No products found', 'There\'re no listed products here', 'product', Button([SVG.add('size-4'), 'Create a listing']).click(() => this.app.createPostmodal.open(true)));
+		if (products.length == 0) return this.createEmptyState('No products found', 'There\'re no listed products here', 'product', Button([SVG.add('size-4'), 'Create a listing']).click(() => this.app.create.open()));
 		return products.slice(0, 4).map(product => D('div', [
 			ImageWithFallback({ src: product.image, alt: 'Product' }),
 			D('div', [
@@ -300,6 +297,10 @@ export default class ProfileScreen extends Screen {
 				], 'flex-1')
 			], 'flex items-start gap-3 mb-2')
 		], 'p-4 bg-zinc-900 rounded-xl border border-violet-500/20'));
+	}
+
+	openSettings() {
+
 	}
 
 	openPostEdit(pid) {

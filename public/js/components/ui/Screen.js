@@ -12,8 +12,9 @@ export default class Screen {
 	init() {
 		this.opened = true;
 		this.href = window.location.href;
-		this.container = h('div', { class: 'flex-grow pb-24 animate-slideUp' });
-		this.header = h('div', { class: 'sticky top-6 mb-6 pt-4 z-10 animate-slideDown before:fixed before:block before:top-0 before:left-0 before:right-0 data-[backdrop=inactive]:before:opacity-0 data-[backdrop=active]:before:opacity-1 before:transition-[opacity] before:duration-50 before:h-28 before:-z-10 before:bg-gradient-to-br before:from-violet-950/20 before:to-black/20 before:shadow-[0_4px_30px_rgba(0,0,0,.1)] before:border before:border-black/10 before:backdrop-blur-md', 'data-backdrop': 'inactive' });
+		this.back = h('div', { class: 'w-10' }, h('a', { class: 'grid h-10 w-10 place-items-center rounded-full bg-zinc-900 text-gray-300' }, SVG.chevronLeft('h-5 w-5')));
+		this.container = h('div', { class: 'flex-1 pb-24 animate-slideUp' });
+		this.header = h('div', { class: 'sticky top-2 mb-4 pt-2 z-10 animate-slideDown before:fixed before:block before:top-0 before:left-0 before:right-0 data-[backdrop=inactive]:before:opacity-0 data-[backdrop=active]:before:opacity-1 before:transition-[opacity] before:duration-50 before:h-24 before:-z-10 before:bg-gradient-to-br before:from-violet-950/20 before:to-black/20 before:shadow-[0_4px_30px_rgba(0,0,0,.1)] before:border before:border-black/10 before:backdrop-blur-md', 'data-backdrop': 'inactive' });
 
 		this.guiIcon = {
 			'feed': h('div', { class: 'relative w-[200px] h-[200px] mb-8' }, h('div', { class: 'absolute w-[140px] h-[100px] bg-violet-700/10 border border-violet-700/30 rounded-[12px] top-5 left-2.5 p-3 flex flex-col justify-between' },h('div', { class: 'w-10 h-10 bg-violet-700/20 rounded-full' }), h('div', { class: 'h-[4px] w-[80%] bg-violet-700/20 rounded-[2px]' }), h('div', { class: 'h-[3px] w-[60%] bg-violet-700/15 rounded-[2px]' })), h('div', { class: 'absolute w-[140px] h-[100px] bg-blue-600/10 border border-blue-600/30 rounded-[12px] bottom-5 right-2.5 p-3 flex flex-col justify-between' }, h('div', { class: 'w-10 h-10 bg-blue-600/20 rounded-full' }), h('div', { class: 'h-[4px] w-[80%] bg-blue-600/20 rounded-[2px]' }), h('div', { class: 'h-[3px] w-[60%] bg-blue-600/15 rounded-[2px]' }))),
@@ -68,10 +69,13 @@ export default class Screen {
 			if (window.pageYOffset >= 12) this.header.attr({ 'data-backdrop': 'active' });
 			else this.header.attr({ 'data-backdrop': 'inactive' });
 		});
+
+		this.resize();
+		window.addEventListener('resize', () => this.resize());
 	}
 
 	createEmptyState(title, description, icon, action) {
-		return h('div', { class: 'flex flex-col items-center justify-center px-12 py-6 text-center' },
+		return h('div', { class: 'flex flex-col items-center justify-center h-full px-12 py-6 text-center' },
 			icon && this.guiIcon[icon],
 			h('h2', { class: 'font-bold mb-2 text-white' }, title),
 			h('p', {class: 'text-sm text-gray-500 mb-6'}, description),
@@ -81,9 +85,15 @@ export default class Screen {
 
 	reload() { }
 
+	resize() {
+		const isLandscape = window.innerWidth > 1280 && window.innerWidth > window.innerHeight;
+		if (isLandscape) this.container.removeClass('pb-24').addClass('pb-4');
+		else this.container.addClass('pb-24').removeClass('pb-4');
+	}
+
 	close() {
 		this.opened = false;
-		this.app.display.container.find('[data-gradient-overlay]').attr({ 'data-gradient-overlay': 'off'});
+		this.app.display.container.find('[data-gradient-overlay]').attr({ 'data-gradient-overlay': 'off'}).addClass('min-h-screen').removeClass('h-screen', 'overflow-y-hidden');
 		this.app.display.mainContent.removeChildren().removeClass(`max-w-${this.size}xl`);
 	}
 }
