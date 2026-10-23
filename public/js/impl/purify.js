@@ -1,6 +1,6 @@
 /*! @license DOMPurify 3.4.17 | (c) Cure53 and other contributors | Released under the Apache license 2.0 and Mozilla Public License 2.0 | github.com/cure53/DOMPurify/blob/3.4.17/LICENSE */
 (function(global, factory) {
-	typeof exports === "object" && typeof module !== "undefined" ? module.exports = factory() : typeof define === "function" && define.amd ? define([], factory) : (global = typeof globalThis !== "undefined" ? globalThis : global || self, global.DOMPurify = factory());
+	(global = typeof globalThis !== "undefined" ? globalThis : global || self, global.DOMPurify = factory());
 })(this, function() {
 	"use strict";
 	function _OverloadYield(e, d) {

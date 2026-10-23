@@ -6,7 +6,7 @@ export default defineConfig( {
     build: {
         manifest: true,
         outDir: 'dist',
-	assetsDir: 'assets',
+	    assetsDir: 'assets',
         minify: 'terser',
         rollupOptions: {
             input: {
