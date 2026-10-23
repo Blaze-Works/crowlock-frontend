@@ -423,7 +423,7 @@ async function fetchWithTimeout(url, options = {}, timeout = 3e4, responseType =
 	const controller = new AbortController();
 	const id = setTimeout(() => controller.abort('timedout'), timeout);
 
-	const response = await fetch(`https://laughing-zebra-vrgwpg47p9vfx94-3000.app.github.dev${url}`, {
+	const response = await fetch(`https://crowlock.onrender.com${url}`, {
 		...options,
 		signal: controller.signal
 	});
