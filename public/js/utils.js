@@ -87,7 +87,7 @@ const Button = (child, color = 'violet', attr = {}) => h('button', { 'data-slot'
 const ImageWithFallback = (opt) => {
 	if (opt.src.split(':')[0] === 'blob') return h('img', { class: 'w-full h-full object-contain', ...opt })
 	const placeholder = h('div', { class: 'size-full aspect-square animate-pulse' }, SVG.imgPlaceholder('size-full'));
-	opt.src = !isValidUrl(opt.src) ?  'http://localhost:8080/' + opt.src : opt.src;
+	opt.src = !isValidUrl(opt.src) ?  'https://crowlock.onrender.com/' + opt.src : opt.src;
 	if (!!cachedImages[opt.src]) {
 		opt.src = cachedImages[opt.src];
 		return h('img', { class: 'w-full h-full object-contain', ...opt })
